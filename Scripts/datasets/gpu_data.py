@@ -1,4 +1,4 @@
-# Resource: https://en.wikipedia.org/wiki/Graphics_Core_Next
+# 资源: https://en.wikipedia.org/wiki/Graphics_Core_Next
 AMDCodenames = [
     "Hainan",
     "Oland",

@@ -158,7 +158,7 @@ class Utils:
         elif os.name == 'nt':
             os.startfile(folder_path)
 
-    def request_input(self, prompt="Press Enter to continue..."):
+    def request_input(self, prompt="按[Enter]键继续..."):
         if sys.version_info[0] < 3:
             user_response = raw_input(prompt)
         else:
@@ -195,9 +195,69 @@ class Utils:
         title = " {} ".format(text)
         if len(title) > width - 2:
             title = title[:width-4] + "..."
-        title = title.center(width - 2)
+        title = self.center_align_with_width(title, (width - 2))
         
         print("╔{}╗\n║{}║\n╚{}╝".format(separator, title, separator))
+
+    def center_align_with_width(self, s1, w1):
+        """
+        将字符串s1按指定宽度w1居中对齐，中文占2个宽度，英文占1个，空格填充，无法均分则前移一个
+        边界处理：原字符串宽度≥w1时，截断并拼接...，最终结果严格匹配w1长度
+        
+        Args:
+            s1: 待处理字符串
+            w1: 目标宽度（以英文宽度为1单位）
+        
+        Returns:
+            对齐后的字符串（长度严格匹配w1）
+        """
+        # 计算单个字符的宽度（中文2，其他1）
+        def char_width(char: str) -> int:
+            return 2 if '\u4e00' <= char <= '\u9fff' else 1
+
+        # 计算字符串的实际宽度
+        def calculate_str_width(s: str) -> int:
+            return sum(char_width(c) for c in s)
+        
+        # 截断字符串并拼接...，确保最终宽度为w1
+        def truncate_with_ellipsis(s: str, target_w: int) -> str:
+            if target_w <= 3:  # 若目标宽度≤3，直接返回前target_w个字符（无法容纳...）
+                return s[:target_w]
+            
+            # 预留3个宽度给...，计算可截断的最大宽度
+            max_content_w = target_w - 3
+            current_w = 0
+            truncate_idx = 0
+            
+            # 遍历字符，累计宽度直到接近max_content_w
+            for i, c in enumerate(s):
+                c_w = char_width(c)
+                if current_w + c_w > max_content_w:
+                    break
+                current_w += c_w
+                truncate_idx = i + 1
+            
+            # 截断并拼接...
+            truncated_str = s[:truncate_idx]
+            return truncated_str + "..."
+        
+        # 1. 计算原字符串实际宽度
+        str_total_width = calculate_str_width(s1)
+        
+        # 2. 边界处理：宽度≥w1时截断加...
+        if str_total_width >= w1:
+            return truncate_with_ellipsis(s1, w1)
+        
+        # 3. 居中对齐逻辑：计算左右填充空格
+        total_space = w1 - str_total_width
+        # 无法均分则左侧少1个（前移）
+        left_space = total_space // 2 if total_space % 2 == 0 else (total_space - 1) // 2
+        right_space = total_space - left_space
+        
+        # 4. 拼接结果并确保长度严格匹配w1
+        result = ' ' * left_space + s1 + ' ' * right_space
+        # 兜底校验（理论上不会触发）
+        return result[:w1] if len(result) > w1 else result
     
     def adjust_window_size(self, content=""):
         lines = content.splitlines()
@@ -209,7 +269,7 @@ class Utils:
         self.head()
         width = 68
         print("")
-        print("For more information, to report errors, or to contribute to the product:".center(width))
+        print("获取更多信息、报告错误或为产品做出贡献：".center(width))
         print("")
 
         separator = "─" * (width - 4)
@@ -227,7 +287,7 @@ class Utils:
 
         print(f" └{separator}┘ ")
         print("")
-        print("Thank you for using our program!".center(width))
+        print("感谢使用我们的脚本！".center(width))
         print("")
-        self.request_input("Press Enter to exit.".center(width))
+        self.request_input("按[Enter]键退出。".center(width))
         sys.exit(0)

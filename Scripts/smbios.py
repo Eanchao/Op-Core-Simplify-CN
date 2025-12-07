@@ -173,9 +173,9 @@ class SMBIOS:
             contents = []
             contents.append("")
             if show_all_models:
-                contents.append("List of available SMBIOS:")
+                contents.append("可用的SMBIOS列表：")
             else:
-                contents.append("List of compatible SMBIOS:")
+                contents.append("兼容的SMBIOS列表：")
             for index, device in enumerate(mac_devices, start=1):
                 isSupported = self.utils.parse_darwin_version(device.initial_support) <= self.utils.parse_darwin_version(macos_version) <= self.utils.parse_darwin_version(device.last_supported_version)
                 if device.name not in (default_smbios_model, selected_smbios_model) and not show_all_models and (not isSupported or (is_laptop and not device.name.startswith("MacBook")) or (not is_laptop and device.name.startswith("MacBook"))):
@@ -189,7 +189,7 @@ class SMBIOS:
                     category += char
                 if category != current_category:
                     current_category = category
-                    category_header = "Category: {}".format(current_category if current_category else "Uncategorized")
+                    category_header = "类别：{}".format(current_category if current_category else "未分类")
                     contents.append(f"\n{category_header}\n" + "=" * len(category_header))
                 checkbox = "[*]" if device.name == selected_smbios_model else "[ ]"
                 
@@ -200,25 +200,25 @@ class SMBIOS:
                     line = "\033[90m{}\033[0m".format(line)
                 contents.append(line)
             contents.append("")
-            contents.append("\033[1;93mNote:\033[0m")
-            contents.append("- Lines in gray indicate mac models that are not officially supported by {}.".format(os_data.get_macos_name_by_darwin(macos_version)))
+            contents.append("\033[1;93m注意：\033[0m")
+            contents.append("- 灰色行表示不受{}官方支持的Mac型号。".format(os_data.get_macos_name_by_darwin(macos_version)))
             contents.append("")
             if not show_all_models:
-                contents.append("A. Show all models")
+                contents.append("A. 显示所有型号")
             else:
-                contents.append("C. Show compatible models only")
+                contents.append("C. 仅显示兼容型号")
             if selected_smbios_model != default_smbios_model:
-                contents.append("R. Restore default SMBIOS model ({})".format(default_smbios_model))
+                contents.append("R. 恢复默认SMBIOS型号 ({})".format(default_smbios_model))
             contents.append("")
-            contents.append("B. Back")
-            contents.append("Q. Quit")
+            contents.append("B. 返回")
+            contents.append("Q. 退出")
             contents.append("")
             content = "\n".join(contents)
 
             self.utils.adjust_window_size(content)
             self.utils.head("Customize SMBIOS Model", resize=False)
-            print(content)
-            option = self.utils.request_input("Select your option: ")
+            print("内容：{}".format(content))
+            option = self.utils.request_input("选择您的选项: ")
             if option.lower() == "q":
                 self.utils.exit_program()
             if option.lower() == "b":

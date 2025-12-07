@@ -1,4 +1,4 @@
-# Original source: https://github.com/corpnewt/SSDTTime/blob/64446d553fcbc14a4e6ebf3d8d16e3357b5cbf50/Scripts/dsdt.py
+# 原始来源: https://github.com/corpnewt/SSDTTime/blob/64446d553fcbc14a4e6ebf3d8d16e3357b5cbf50/Scripts/dsdt.py
 
 import os, errno, tempfile, shutil, plistlib, sys, binascii, zipfile, getpass, re
 from Scripts import github
@@ -7,6 +7,26 @@ from Scripts import run
 from Scripts import utils
 
 class DSDT:
+    """
+    DSDT 实现了与 ACPI 表交互的各种方法，包括：
+    
+    - 加载十六进制格式的 ACPI 表
+    - 将十六进制格式的表反汇编为 AML/ASL
+    - 查找、编辑和保存 ACPI 表
+    - 从 ACPI 二进制文件中检测 ACPI 表
+    - 从内存中转储 ACPI 表（通过 iasl）
+    - 定位和检测特定的 ACPI 对象
+    - 以及其他用于处理 ACPI 表的有用函数
+    
+    这个类在黑苹果场景中最适用于 ACPI 表补丁和探索。
+    
+    属性：
+        run (obj): 用于执行命令的 Run 类实例
+        r (obj): run 属性的引用（快捷方式）
+        iasl_path (str): iasl 编译器的路径
+        tables (dict): 已加载的 ACPI 表的字典
+        type_match (re.Pattern): 用于匹配 ACPI 对象类型的正则表达式
+    """
     def __init__(self, **kwargs):
         #self.dl = downloader.Downloader()
         self.github = github.Github()
@@ -38,7 +58,7 @@ class DSDT:
         self.allowed_signatures = (b"APIC",b"DMAR",b"DSDT",b"SSDT")
         self.mixed_listing      = (b"DSDT",b"SSDT")
         self.acpi_tables = {}
-        # Setup regex matches
+        # 设置正则表达式匹配
         self.hex_match  = re.compile(r"^\s*[0-9A-F]{4,}:(\s[0-9A-F]{2})+(\s+\/\/.*)?$")
         self.type_match = re.compile(r".*(?P<type>Processor|Scope|Device|Method|Name) \((?P<name>[^,\)]+).*")
 
@@ -46,8 +66,7 @@ class DSDT:
         path = os.path.join(table_path,table_name) if table_name else table_path
         if not os.path.isfile(path):
             return None
-        # Try to load it and read the first 4 bytes to verify the
-        # signature
+        # 尝试加载文件并读取前4个字节来验证签名
         with open(path,"rb") as f:
             try:
                 sig = f.read(4)
@@ -60,8 +79,7 @@ class DSDT:
         return self._table_signature(table_path,table_name=table_name) in self.allowed_signatures
 
     def get_ascii_print(self, data):
-        # Helper to sanitize unprintable characters by replacing them with
-        # ? where needed
+        # 辅助函数：通过用?替换不可打印字符来清理数据
         unprintables = False
         ascii_string = ""
         for b in data:
@@ -76,134 +94,135 @@ class DSDT:
         return (unprintables,ascii_string)
 
     def load(self, table_path):
-        # Attempt to load the passed file - or if a directory
-        # was passed, load all .aml and .dat files within
+        # 尝试加载传入的文件 - 如果传入的是目录，则加载目录中所有.aml和.dat文件
         cwd = os.getcwd()
         temp = None
         target_files = {}
         failed = []
         try:
             if os.path.isdir(table_path):
-                # Got a directory - gather all files
-                # Gather valid files in the directory
-                valid_files = [x for x in os.listdir(table_path) if self.table_is_valid(table_path,x)]
+                # 得到一个目录 - 收集所有文件
+                # 收集目录中的有效文件
+                valid_files = [x for x in os.listdir(table_path) if self.table_is_valid(table_path, x)]
             elif os.path.isfile(table_path):
-                # Just loading the one table
+                # 只加载一个表
                 valid_files = [table_path]
             else:
-                # Not a valid path
+                # 不是有效的路径
                 raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), table_path)
+
             if not valid_files:
-                # No valid files were found
+                # 没有找到有效的文件
                 raise FileNotFoundError(
                     errno.ENOENT,
                     os.strerror(errno.ENOENT),
                     "No valid .aml/.dat files found at {}".format(table_path)
                 )
-            # Create a temp dir and copy all files there
+
+            # 创建一个临时目录并将所有文件复制到那里
             temp = tempfile.mkdtemp()
             for file in valid_files:
                 shutil.copy(
-                    os.path.join(table_path,file),
+                    os.path.join(table_path, file),
                     temp
                 )
-            # Build a list of all target files in the temp folder - and save
-            # the disassembled_name for each to verify after
+
+            # 构建临时文件夹中所有目标文件的列表 - 并保存每个文件的disassembled_name用于后续验证
             list_dir = os.listdir(temp)
             for x in list_dir:
-                if len(list_dir) > 1 and not self.table_is_valid(temp,x):
-                    continue # Skip invalid files when multiple are passed
+                if len(list_dir) > 1 and not self.table_is_valid(temp, x):
+                    continue  # 当传递多个文件时跳过无效文件
                 name_ext = [y for y in os.path.basename(x).split(".") if y]
-                if name_ext and name_ext[-1].lower() in ("asl","dsl"):
-                    continue # Skip any already disassembled files
+                if name_ext and name_ext[-1].lower() in ("asl", "dsl"):
+                    continue  # 跳过任何已经反汇编的文件
                 target_files[x] = {
                     "assembled_name": os.path.basename(x),
                     "disassembled_name": ".".join(x.split(".")[:-1]) + ".dsl",
                 }
+
             if not target_files:
-                # Somehow we ended up with none?
+                # 不知何故我们最终一个都没有？
                 raise FileNotFoundError(
                     errno.ENOENT,
                     os.strerror(errno.ENOENT),
                     "No valid .aml/.dat files found at {}".format(table_path)
                 )
-            os.chdir(temp)
-            # Generate and run a command
-            dsdt_or_ssdt = [x for x in list(target_files) if self._table_signature(temp,x) in self.mixed_listing]
-            other_tables = [x for x in list(target_files) if not x in dsdt_or_ssdt]
-            out_d = ("","",0)
-            out_t = ("","",0)
 
-            def exists(folder_path,file_name):
-                # Helper to make sure the file exists and has a non-Zero size
+            os.chdir(temp)
+            # 生成并运行命令
+            dsdt_or_ssdt = [x for x in list(target_files) if self._table_signature(temp, x) in self.mixed_listing]
+            other_tables = [x for x in list(target_files) if x not in dsdt_or_ssdt]
+            out_d = ("", "", 0)
+            out_t = ("", "", 0)
+
+            def exists(folder_path, file_name):
+                # 辅助函数，确保文件存在且大小不为零
                 check_path = os.path.join(folder_path,file_name)
                 if os.path.isfile(check_path) and os.stat(check_path).st_size > 0:
                     return True
                 return False
             
-            # Check our DSDT and SSDTs first
+            # 首先检查我们的 DSDT 和 SSDT
             if dsdt_or_ssdt:
                 args = [self.iasl,"-da","-dl","-l"]+list(dsdt_or_ssdt)
                 out_d = self.r.run({"args":args})
                 if out_d[2] != 0:
-                    # Attempt to run without `-da` if the above failed
+                    # 如果上述失败，尝试不使用 `-da` 运行
                     args = [self.iasl,"-dl","-l"]+list(dsdt_or_ssdt)
                     out_d = self.r.run({"args":args})
-                # Get a list of disassembled names that failed
+                # 获取反汇编失败的名称列表
                 fail_temp = []
                 for x in dsdt_or_ssdt:
                     if not exists(temp,target_files[x]["disassembled_name"]):
                         fail_temp.append(x)
-                # Let's try to disassemble any that failed individually
+                # 让我们尝试单独反汇编任何失败的表
                 for x in fail_temp:
                     args = [self.iasl,"-dl","-l",x]
                     self.r.run({"args":args})
                     if not exists(temp,target_files[x]["disassembled_name"]):
                         failed.append(x)
-            # Check for other tables (DMAR, APIC, etc)
+            # 检查其他表（DMAR、APIC 等）
             if other_tables:
                 args = [self.iasl]+list(other_tables)
                 out_t = self.r.run({"args":args})
-                # Get a list of disassembled names that failed
+                # 获取反汇编失败的名称列表
                 for x in other_tables:
                     if not exists(temp,target_files[x]["disassembled_name"]):
                         failed.append(x)
             if len(failed) == len(target_files):
                 raise Exception("Failed to disassemble - {}".format(", ".join(failed)))
-            # Actually process the tables now
+            # 现在实际处理这些表
             to_remove = []
             for file in target_files:
-                # We need to load the .aml and .dsl into memory
-                # and get the paths and scopes
+                # 我们需要将.aml和.dsl文件加载到内存中并获取路径和作用域
                 if not exists(temp,target_files[file]["disassembled_name"]):
                     to_remove.append(file)
                     continue
                 with open(os.path.join(temp,target_files[file]["disassembled_name"]),"r") as f:
                     target_files[file]["table"] = f.read()
-                    # Remove the compiler info at the start
+                    # 移除开头的编译器信息
                     if target_files[file]["table"].startswith("/*"):
                         target_files[file]["table"] = "*/".join(target_files[file]["table"].split("*/")[1:]).strip()
-                    # Check for "Table Header:" or "Raw Table Data: Length" and strip everything
-                    # after the last occurrence
+                    # 检查"Table Header:"或"Raw Table Data: Length"，并移除最后一次出现后的所有内容
                     for h in ("\nTable Header:","\nRaw Table Data: Length"):
                         if h in target_files[file]["table"]:
                             target_files[file]["table"] = h.join(target_files[file]["table"].split(h)[:-1]).rstrip()
-                            break # Bail on the first match
+                            break # 在第一次匹配时退出
                     target_files[file]["lines"] = target_files[file]["table"].split("\n")
                     target_files[file]["scopes"] = self.get_scopes(table=target_files[file])
                     target_files[file]["paths"] = self.get_paths(table=target_files[file])
                 with open(os.path.join(temp,file),"rb") as f:
                     table_bytes = f.read()
                     target_files[file]["raw"] = table_bytes
-                    # Let's read the table header and get the info we need
+                    # 让我们读取表头部并获取所需信息
                     #
-                    # [0:4]   = Table Signature
-                    # [4:8]   = Length (little endian)
-                    # [8]     = Compliance Revision
-                    # [9]     = Checksum
-                    # [10:16] = OEM ID (6 chars, padded to the right with \x00)
-                    # [16:24] = Table ID (8 chars, padded to the right with \x00)
-                    # [24:28] = OEM Revision (little endian)
+                    # [0:4]   = 表签名
+                    # [4:8]   = 长度（小端序）
+                    # [8]     = 合规性修订版本
+                    # [9]     = 校验和
+                    # [10:16] = OEM ID（6个字符，右侧用\x00填充）
+                    # [16:24] = 表ID（8个字符，右侧用\x00填充）
+                    # [24:28] = OEM修订版本（小端序）
                     # 
                     target_files[file]["signature"] = table_bytes[0:4]
                     target_files[file]["revision"]  = table_bytes[8]
@@ -211,59 +230,57 @@ class DSDT:
                     target_files[file]["id"]        = table_bytes[16:24]
                     target_files[file]["oem_revision"] = int(binascii.hexlify(table_bytes[24:28][::-1]),16)
                     target_files[file]["length"]    = len(table_bytes)
-                    # Get the printable versions of the sig, oem, and id as needed
+                    # 必要时获取签名、OEM和ID的可打印版本
                     for key in ("signature","oem","id"):
                         unprintable,ascii_string = self.get_ascii_print(target_files[file][key])
                         if unprintable:
                             target_files[file][key+"_ascii"] = ascii_string
-                    # Cast as int on py2, and try to decode bytes to strings on py3
+                    # 在py2上转换为int，在py3上尝试将字节解码为字符串
                     if 2/3==0:
                         target_files[file]["revision"] = int(binascii.hexlify(target_files[file]["revision"]),16)
-                # The disassembler omits the last line of hex data in a mixed listing
-                # file... convenient.  However - we should be able to reconstruct this
-                # manually.
+                # 反汇编程序在混合列表文件中省略了最后一行十六进制数据...很方便。不过我们应该能够手动重建它。
                 last_hex = next((l for l in target_files[file]["lines"][::-1] if self.is_hex(l)),None)
                 if last_hex:
-                    # Get the address left of the colon
+                    # 获取冒号左侧的地址
                     addr = int(last_hex.split(":")[0].strip(),16)
-                    # Get the hex bytes right of the colon
+                    # 获取冒号右侧的十六进制字节
                     hexs = last_hex.split(":")[1].split("//")[0].strip()
-                    # Increment the address by the number of hex bytes
+                    # 按照十六进制字节数增加地址
                     next_addr = addr+len(hexs.split())
-                    # Now we need to get the bytes at the end
+                    # 现在我们需要获取末尾的字节
                     hexb = self.get_hex_bytes(hexs.replace(" ",""))
-                    # Get the last occurrence after the split
+                    # 获取分割后的最后一次出现
                     remaining = target_files[file]["raw"].split(hexb)[-1]
-                    # Iterate in chunks of 16
+                    # 以16个为一组进行迭代
                     for chunk in [remaining[i:i+16] for i in range(0,len(remaining),16)]:
-                        # Build a new byte string
+                        # 构建一个新的字节字符串
                         hex_string = binascii.hexlify(chunk)
-                        # Decode the bytes if we're on python 3
+                        # 如果是python 3，解码字节
                         if 2/3!=0: hex_string = hex_string.decode()
-                        # Ensure the bytes are all upper case
+                        # 确保所有字节都是大写
                         hex_string = hex_string.upper()
                         l = "   {}: {}".format(
                             hex(next_addr)[2:].upper().rjust(4,"0"),
                             " ".join([hex_string[i:i+2] for i in range(0,len(hex_string),2)])
                         )
-                        # Increment our address
+                        # 增加我们的地址
                         next_addr += len(chunk)
-                        # Append our line
+                        # 添加我们的行
                         target_files[file]["lines"].append(l)
                         target_files[file]["table"] += "\n"+l
-            # Remove any that didn't disassemble
+            # 移除任何未反汇编的内容
             for file in to_remove:
                 target_files.pop(file,None)
         except Exception as e:
-            print(e)
+            print("错误：{}".format(e))
             return ({},failed)
         finally:
             os.chdir(cwd)
             if temp: shutil.rmtree(temp,ignore_errors=True)
-        # Add/update any tables we loaded
+        # 添加/更新我们加载的任何表
         for table in target_files:
             self.acpi_tables[table] = target_files[table]
-        # Only return the newly loaded results
+        # 仅返回新加载的结果
         return (target_files, failed,)
 
     def get_latest_iasl(self):
@@ -289,9 +306,9 @@ class DSDT:
                 )
         target = next((t for t in targets if os.path.exists(t)),None)
         if target or not try_downloading:
-            # Either found it - or we didn't, and have already tried downloading
+            # 要么找到了它 - 要么没有，并且我们已经尝试下载过
             return target
-        # Need to download
+        # 需要下载
         temp = tempfile.mkdtemp()
         try:
             if sys.platform == "darwin":
@@ -305,50 +322,49 @@ class DSDT:
             else: 
                 raise Exception("Unknown OS")
         except Exception as e:
-            print("An error occurred :(\n - {}".format(e))
+            print("发生错误：(\n - {}".format(e))
         shutil.rmtree(temp, ignore_errors=True)
-        # Check again after downloading
+        # 下载后再次检查
         return self.check_iasl(legacy=legacy,try_downloading=False)
 
     def _download_and_extract(self, temp, url):
         self.u.head("Gathering Files")
         print("")
-        print("Please wait for download iasl...")
+        print("请等待下载 iasl...")
         print("")
         ztemp = tempfile.mkdtemp(dir=temp)
         zfile = os.path.basename(url)
-        #print("Downloading {}".format(os.path.basename(url)))
+        #print("正在下载 {}".format(os.path.basename(url)))
         #self.dl.stream_to_file(url, os.path.join(ztemp,zfile), progress=False, headers=self.h)
         self.fetcher.download_and_save_file(url, os.path.join(ztemp,zfile))
         search_dir = ztemp
         if zfile.lower().endswith(".zip"):
-            print(" - Extracting")
+            print(" - 正在解压")
             search_dir = tempfile.mkdtemp(dir=temp)
-            # Extract with built-in tools \o/
+            # 使用内置工具解压 \o/
             with zipfile.ZipFile(os.path.join(ztemp,zfile)) as z:
                 z.extractall(search_dir)
         script_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)))
         for x in os.listdir(search_dir):
             if x.lower().startswith(("iasl","acpidump")):
-                # Found one
-                print(" - Found {}".format(x))
+                # 找到了一个
+                print(" - 找到 {}".format(x))
                 if sys.platform != "win32":
-                    print("   - Chmod +x")
+                    print("   - 设置执行权限")
                     self.r.run({"args":["chmod","+x",os.path.join(search_dir,x)]})
-                print("   - Copying to {} directory".format(os.path.basename(script_dir)))
+                print("   - 正在复制到 {} 目录".format(os.path.basename(script_dir)))
                 shutil.copy(os.path.join(search_dir,x), os.path.join(script_dir,x))
 
     def dump_tables(self, output, disassemble=False):
-        # Helper to dump all ACPI tables to the specified
-        # output path
+        # 辅助函数，用于将所有ACPI表转储到指定的输出路径
         self.u.head("Dumping ACPI Tables")
         print("")
         res = self.check_output(output)
         if os.name == "nt":
             target = os.path.join(os.path.dirname(os.path.realpath(__file__)),"acpidump.exe")
             if os.path.exists(target):
-                # Dump to the target folder
-                print("Dumping tables to {}...".format(res))
+                # 转储到目标文件夹
+                print("正在将表转储到 {}...".format(res))
                 cwd = os.getcwd()
                 os.chdir(res)
                 out = self.r.run({"args":[target,"-b"]})
@@ -356,43 +372,41 @@ class DSDT:
                 if out[2] != 0:
                     print(" - {}".format(out[1]))
                     return
-                # Make sure we have a DSDT
+                # 确保我们有一个DSDT
                 if not next((x for x in os.listdir(res) if x.lower().startswith("dsdt.")),None):
-                    # We need to try and dump the DSDT individually - this sometimes
-                    # happens on older Windows installs or odd OEM machines
-                    print(" - DSDT not found - dumping by signature...")
+                    # 我们需要尝试单独转储DSDT - 这有时会在旧的Windows安装或奇怪的OEM机器上发生
+                    print(" - 未找到 DSDT - 按签名转储...")
                     os.chdir(res)
                     out = self.r.run({"args":[target,"-b","-n","DSDT"]})
                     os.chdir(cwd)
                     if out[2] != 0:
                         print(" - {}".format(out[1]))
                         return
-                # Iterate the dumped files and ensure the names are uppercase, and the
-                # extension used is .aml, not the default .dat
-                print("Updating names...")
+                # 遍历转储的文件并确保名称是大写的，并且使用的扩展名是.aml，而不是默认的.dat
+                print("正在更新名称...")
                 for f in os.listdir(res):
                     new_name = f.upper()
                     if new_name.endswith(".DAT"):
                         new_name = new_name[:-4]+".aml"
                     if new_name != f:
-                        # Something changed - print it and rename it
+                        # 有些东西改变了 - 打印它并重命名
                         try:
                             os.rename(os.path.join(res,f),os.path.join(res,new_name))
                         except Exception as e:
-                            print(" - {} -> {} failed: {}".format(f,new_name,e))
-                print("Dump successful!")
+                            print(" - {} -> {} 失败: {}".format(f,new_name,e))
+                print("转储成功!")
                 if disassemble:
                     return self.load(res)
                 return res
             else:
-                print("Failed to locate acpidump.exe")
+                print("未能找到 acpidump.exe")
                 return
         elif sys.platform.startswith("linux"):
             table_dir = "/sys/firmware/acpi/tables"
             if not os.path.isdir(table_dir):
-                print("Could not locate {}!".format(table_dir))
+                print("无法定位 {}!".format(table_dir))
                 return
-            print("Copying tables to {}...".format(res))
+            print("正在将表复制到 {}...".format(res))
             copied_files = []
             for table in os.listdir(table_dir):
                 if not os.path.isfile(os.path.join(table_dir,table)):
@@ -406,110 +420,243 @@ class DSDT:
                 if out[2] != 0:
                     print(" - {}".format(out[1]))
                     return
-            print("Dump successful!")
+            print("转储成功!")
             if disassemble:
                 return self.load(res)
             return res
 
     def check_output(self, output):
+        """
+        检查输出目录是否存在，不存在则创建
+        
+        参数:
+            output: 输出目录名称
+            
+        返回:
+            创建的输出目录路径
+        """
         t_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), output)
         if not os.path.isdir(t_folder):
             os.makedirs(t_folder)
         return t_folder
 
     def get_hex_from_int(self, total, pad_to = 4):
+        """
+        将整数转换为十六进制字符串，并进行字节反转
+        
+        参数:
+            total: 要转换的整数
+            pad_to: 十六进制字符串的最小长度，不足则用0填充
+            
+        返回:
+            反转字节后的十六进制字符串
+        """
         hex_str = hex(total)[2:].upper().rjust(pad_to,"0")
         return "".join([hex_str[i:i + 2] for i in range(0, len(hex_str), 2)][::-1])
 
     def get_hex(self, line):
-        # strip the header and commented end
+        """
+        从行中提取十六进制数据，去除头部和注释
+        
+        参数:
+            line: 包含十六进制数据的行
+            
+        返回:
+            提取的十六进制字符串
+        """
+        # 去除头部和注释部分
         return line.split(":")[1].split("//")[0].replace(" ","")
 
     def get_line(self, line):
-        # Strip the header and commented end - no space replacing though
+        """
+        从行中提取内容，去除注释和可能的头部
+        
+        参数:
+            line: 要处理的行
+            
+        返回:
+            提取的内容
+        """
+        # 去除注释部分 - 但保留空格
         line = line.split("//")[0]
         if ":" in line:
             return line.split(":")[1]
         return line
 
     def get_hex_bytes(self, line):
+        """
+        将十六进制字符串转换为字节
+        
+        参数:
+            line: 十六进制字符串
+            
+        返回:
+            转换后的字节数据
+        """
         return binascii.unhexlify(line)
 
     def get_str_bytes(self, value):
+        """
+        将字符串转换为字节
+        
+        参数:
+            value: 要转换的字符串
+            
+        返回:
+            转换后的字节数据
+        """
         if 2/3!=0 and isinstance(value,str):
             value = value.encode()
         return value
 
     def get_table_with_id(self, table_id):
+        """
+        根据表ID获取ACPI表
+        
+        参数:
+            table_id: 表ID
+            
+        返回:
+            找到的ACPI表或None
+        """
         table_id = self.get_str_bytes(table_id)
         return next((v for k,v in self.acpi_tables.items() if table_id == v.get("id")),None)
 
     def get_table_with_signature(self, table_sig):
+        """
+        根据表签名获取ACPI表
+        
+        参数:
+            table_sig: 表签名
+            
+        返回:
+            找到的ACPI表或None
+        """
         table_sig = self.get_str_bytes(table_sig)
         return next((v for k,v in self.acpi_tables.items() if table_sig == v.get("signature")),None)
     
     def get_table(self, table_id_or_sig):
+        """
+        根据表ID或签名获取ACPI表
+        
+        参数:
+            table_id_or_sig: 表ID或签名
+            
+        返回:
+            找到的ACPI表或None
+        """
         table_id_or_sig = self.get_str_bytes(table_id_or_sig)
         return next((v for k,v in self.acpi_tables.items() if table_id_or_sig in (v.get("signature"),v.get("id"))),None)
 
     def get_dsdt(self):
+        """
+        获取DSDT表
+        
+        返回:
+            DSDT表或None
+        """
         return self.get_table_with_signature("DSDT")
 
     def get_dsdt_or_only(self):
+        """
+        获取DSDT表，如果没有则获取唯一的表
+        
+        返回:
+            DSDT表、唯一的表或None
+        """
         dsdt = self.get_dsdt()
         if dsdt: return dsdt
-        # Make sure we have only one table
+        # 确保只有一个表
         if len(self.acpi_tables) != 1:
             return None
         return list(self.acpi_tables.values())[0]
 
     def find_previous_hex(self, index=0, table=None):
+        """
+        找到指定索引之前的十六进制数据
+        
+        参数:
+            index: 开始查找的索引
+            table: 要查找的表，默认为DSDT表或唯一表
+            
+        返回:
+            元组 (hex_text, start_index, end_index)，其中hex_text是十六进制数据，start_index是起始索引，end_index是结束索引
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return ("",-1,-1)
-        # Returns the index of the previous set of hex digits before the passed index
+        # 返回指定索引之前的十六进制数字集的索引
         start_index = -1
         end_index   = -1
         old_hex = True
-        for i,line in enumerate(table.get("lines","")[index::-1]):
+        for i,line in enumerate(table.get("lines","")):
             if old_hex:
                 if not self.is_hex(line):
-                    # Broke out of the old hex
+                    # 跳出旧的十六进制区域
                     old_hex = False
                 continue
-            # Not old_hex territory - check if we got new hex
-            if self.is_hex(line): # Checks for a :, but not in comments
+            # 不在旧的十六进制区域 - 检查是否有新的十六进制
+            if self.is_hex(line): # 检查是否有冒号，但不在注释中
                 end_index = index-i
                 hex_text,start_index = self.get_hex_ending_at(end_index,table=table)
                 return (hex_text, start_index, end_index)
         return ("",start_index,end_index)
     
     def find_next_hex(self, index=0, table=None):
+        """
+        找到指定索引之后的十六进制数据
+        
+        参数:
+            index: 开始查找的索引
+            table: 要查找的表，默认为DSDT表或唯一表
+            
+        返回:
+            元组 (hex_text, start_index, end_index)，其中hex_text是十六进制数据，start_index是起始索引，end_index是结束索引
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return ("",-1,-1)
-        # Returns the index of the next set of hex digits after the passed index
+        # 返回指定索引之后的十六进制数字集的索引
         start_index = -1
         end_index   = -1
         old_hex = True
-        for i,line in enumerate(table.get("lines","")[index:]):
+        for i,line in enumerate(table.get("lines","")):
             if old_hex:
                 if not self.is_hex(line):
-                    # Broke out of the old hex
+                    # 跳出旧的十六进制区域
                     old_hex = False
                 continue
-            # Not old_hex territory - check if we got new hex
-            if self.is_hex(line): # Checks for a :, but not in comments
+            # 不在旧的十六进制区域 - 检查是否有新的十六进制
+            if self.is_hex(line): # 检查是否有冒号，但不在注释中
                 start_index = i+index
                 hex_text,end_index = self.get_hex_starting_at(start_index,table=table)
                 return (hex_text, start_index, end_index)
         return ("",start_index,end_index)
 
     def is_hex(self, line):
+        """
+        检查行是否包含十六进制数据
+        
+        参数:
+            line: 要检查的行
+            
+        返回:
+            如果行包含十六进制数据则返回True，否则返回False
+        """
         return self.hex_match.match(line) is not None
 
     def get_hex_starting_at(self, start_index, table=None):
+        """
+        获取从指定索引开始的十六进制数据
+        
+        参数:
+            start_index: 开始获取的索引
+            table: 要获取的表，默认为DSDT表或唯一表
+            
+        返回:
+            元组 (hex_text, index)，其中hex_text是十六进制数据，index是结束索引
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return ("",-1)
-        # Returns a tuple of the hex, and the ending index
+        # 返回十六进制数据和结束索引的元组
         hex_text = ""
         index = -1
         for i,x in enumerate(table.get("lines","")[start_index:]):
@@ -520,9 +667,19 @@ class DSDT:
         return (hex_text, index)
 
     def get_hex_ending_at(self, start_index, table=None):
+        """
+        获取到指定索引结束的十六进制数据
+        
+        参数:
+            start_index: 结束获取的索引
+            table: 要获取的表，默认为DSDT表或唯一表
+            
+        返回:
+            元组 (hex_text, index)，其中hex_text是十六进制数据，index是起始索引
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return ("",-1)
-        # Returns a tuple of the hex, and the ending index
+        # 返回十六进制数据和起始索引的元组
         hex_text = ""
         index = -1
         for i,x in enumerate(table.get("lines","")[start_index::-1]):
@@ -533,6 +690,18 @@ class DSDT:
         return (hex_text, index)
 
     def get_shortest_unique_pad(self, current_hex, index, instance=0, table=None):
+        """
+        获取使当前十六进制数据唯一所需的最短填充
+        
+        参数:
+            current_hex: 当前十六进制数据
+            index: 十六进制数据的索引
+            instance: 实例编号
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            元组 (left_pad, right_pad)，其中left_pad是左侧填充，right_pad是右侧填充
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return None
         try:    left_pad  = self.get_unique_pad(current_hex, index, False, instance, table=table)
@@ -542,33 +711,46 @@ class DSDT:
         try:    mid_pad   = self.get_unique_pad(current_hex, index, None, instance, table=table)
         except: mid_pad   = None
         if left_pad == right_pad == mid_pad is None: raise Exception("No unique pad found!")
-        # We got at least one unique pad
+        # 我们至少找到了一个唯一的填充
         min_pad = None
         for x in (left_pad,right_pad,mid_pad):
-            if x is None: continue # Skip
+            if x is None: continue # 跳过
             if min_pad is None or len(x[0]+x[1]) < len(min_pad[0]+min_pad[1]):
                 min_pad = x
         return min_pad
 
     def get_unique_pad(self, current_hex, index, direction=None, instance=0, table=None):
+        """
+        获取使当前十六进制数据唯一所需的填充
+        
+        参数:
+            current_hex: 当前十六进制数据
+            index: 十六进制数据的索引
+            direction: 填充方向，可以是True（向前）、False（向后）或None（双向）
+            instance: 实例编号
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            元组 (left_pad, right_pad)，其中left_pad是左侧填充，right_pad是右侧填充
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: raise Exception("No valid table passed!")
-        # Returns any pad needed to make the passed patch unique
-        # direction can be True = forward, False = backward, None = both
+        # 返回使传入的补丁唯一所需的任何填充
+        # direction 可以是 True = 向前, False = 向后, None = 双向
         start_index = index
         line,last_index = self.get_hex_starting_at(index,table=table)
         if last_index == -1:
             raise Exception("Could not find hex starting at index {}!".format(index))
         first_line = line
-        # Assume at least 1 byte of our current_hex exists at index, so we need to at
-        # least load in len(current_hex)-2 worth of data if we haven't found it.
+        # 假设在索引处至少存在1字节的current_hex，因此如果我们还没有找到它，
+        # 我们需要至少加载len(current_hex)-2的数据。
         while True:
             if current_hex in line or len(line) >= len(first_line)+len(current_hex):
-                break # Assume we've hit our cap
+                break # 假设我们已经达到了上限
             new_line,_index,last_index = self.find_next_hex(last_index, table=table)
             if last_index == -1:
                 raise Exception("Hit end of file before passed hex was located!")
-            # Append the new info
+            # 追加新信息
             line += new_line
         if not current_hex in line:
             raise Exception("{} not found in table at index {}-{}!".format(current_hex,start_index,last_index))
@@ -606,9 +788,21 @@ class DSDT:
         return (padl,padr)
     
     def get_devices(self,search=None,types=("Device (","Scope ("),strip_comments=False,table=None):
+        """
+        获取包含指定搜索内容的设备或作用域
+        
+        参数:
+            search: 要搜索的内容
+            types: 要匹配的类型列表，默认为("Device (","Scope (")
+            strip_comments: 是否去除注释，默认为False
+            table: 要搜索的表，默认为DSDT表或唯一表
+            
+        返回:
+            元组列表，格式为(Device/Scope, d_s_index, matched_index)
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
-        # Returns a list of tuples organized as (Device/Scope,d_s_index,matched_index)
+        # 返回格式为(Device/Scope, d_s_index, matched_index)的元组列表
         if search is None:
             return []
         last_device = None
@@ -628,10 +822,21 @@ class DSDT:
         return devices
 
     def get_scope(self,starting_index=0,add_hex=False,strip_comments=False,table=None):
+        """
+        获取从指定索引开始的作用域内容
+        
+        参数:
+            starting_index: 开始索引，默认为0
+            add_hex: 是否添加十六进制内容，默认为False
+            strip_comments: 是否去除注释，默认为False
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            作用域内容列表
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
-        # Walks the scope starting at starting_index, and returns when
-        # we've exited
+        # 从starting_index开始遍历作用域，直到退出作用域时返回
         brackets = None
         scope = []
         for line in table.get("lines","")[starting_index:]:
@@ -652,6 +857,15 @@ class DSDT:
         return scope
 
     def get_scopes(self, table=None):
+        """
+        获取所有处理器、作用域、设备、方法和名称的声明
+        
+        参数:
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            元组列表，格式为(声明行, 索引)
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         scopes = []
@@ -662,10 +876,18 @@ class DSDT:
         return scopes
 
     def get_paths(self, table=None):
+        """
+        获取所有对象的完整路径
+        
+        参数:
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            排序后的路径列表，每个元素为(路径字符串, 索引, 对象类型)
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
-        # Set up lists for complete paths, as well
-        # as our current path reference
+        # 设置完整路径列表和当前路径引用
         path_list  = []
         _path      = []
         brackets = 0
@@ -718,46 +940,105 @@ class DSDT:
         return sorted(path_list)
 
     def get_path_of_type(self, obj_type="Device", obj="HPET", table=None):
+        """
+        获取指定类型和名称的对象路径
+        
+        参数:
+            obj_type: 对象类型，默认为"Device"
+            obj: 对象名称，默认为"HPET"
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            排序后的路径列表
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         paths = []
-        # Remove trailing underscores and normalize case for all path
-        # elements passed
+        # 为所有传入的路径元素去除尾随下划线并标准化大小写
         obj = ".".join([x.rstrip("_").upper() for x in obj.split(".")])
         obj_type = obj_type.lower() if obj_type else obj_type
         for path in table.get("paths",[]):
             path_check = ".".join([x.rstrip("_").upper() for x in path[0].split(".")])
             if (obj_type and obj_type != path[2].lower()) or not path_check.endswith(obj):
-                # Type or object mismatch - skip
+                # 类型或对象不匹配 - 跳过
                 continue
             paths.append(path)
         return sorted(paths)
 
     def get_device_paths(self, obj="HPET",table=None):
+        """
+        获取指定名称的设备路径
+        
+        参数:
+            obj: 设备名称，默认为"HPET"
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            排序后的设备路径列表
+        """
         return self.get_path_of_type(obj_type="Device",obj=obj,table=table)
 
     def get_method_paths(self, obj="_STA",table=None):
+        """
+        获取指定名称的方法路径
+        
+        参数:
+            obj: 方法名称，默认为"_STA"
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            排序后的方法路径列表
+        """
         return self.get_path_of_type(obj_type="Method",obj=obj,table=table)
 
     def get_name_paths(self, obj="CPU0",table=None):
+        """
+        获取指定名称的名称路径
+        
+        参数:
+            obj: 名称，默认为"CPU0"
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            排序后的名称路径列表
+        """
         return self.get_path_of_type(obj_type="Name",obj=obj,table=table)
 
     def get_processor_paths(self, obj_type="Processor",table=None):
+        """
+        获取所有处理器路径
+        
+        参数:
+            obj_type: 对象类型，默认为"Processor"
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            排序后的处理器路径列表
+        """
         return self.get_path_of_type(obj_type=obj_type,obj="",table=table)
 
     def get_device_paths_with_hid(self, hid="ACPI000E", table=None):
+        """
+        获取具有指定HID（硬件ID）的设备路径
+        
+        参数:
+            hid: 硬件ID，默认为"ACPI000E"
+            table: 要操作的表，默认为DSDT表或唯一表
+            
+        返回:
+            设备路径列表
+        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         devs = []
         for p in table.get("paths",[]):
             try:
                 if p[0].endswith("._HID") and hid.upper() in table.get("lines")[p[1]]:
-                    # Save the path, strip the ._HID from the end
+                    # 保存路径，从末尾去除._HID
                     devs.append(p[0][:-len("._HID")])
             except: continue
         devices = []
-        # Walk the paths again - and save any devices
-        # that match our prior list
+        # 再次遍历路径 - 保存与我们之前列表匹配的任何设备
         for p in table.get("paths",[]):
             if p[0] in devs and p[-1] == "Device":
                 devices.append(p)

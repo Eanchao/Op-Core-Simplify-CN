@@ -18,74 +18,74 @@ class Updater:
         self.current_step = 0
 
     def get_current_sha_version(self):
-        print("Checking current version...")
+        print("正在检查当前版本...")
         try:
             current_sha_version = self.utils.read_file(self.sha_version)
 
             if not current_sha_version:
-                print("SHA version information is missing.")
+                print("SHA 版本信息缺失。")
                 return "missing_sha_version"
 
             return current_sha_version.decode()
         except Exception as e:
-            print("Error reading current SHA version: {}".format(str(e)))
+            print("读取当前 SHA 版本时出错: {}".format(str(e)))
             return "error_reading_sha_version"
 
     def get_latest_sha_version(self):
-        print("Fetching latest version from GitHub...")
+        print("正在从 GitHub 获取最新版本...")
         try:
             commits = self.github.get_commits("lzhoang2801", "OpCore-Simplify")
             return commits["commitGroups"][0]["commits"][0]["oid"]
         except Exception as e:
-            print("Error fetching latest SHA version: {}".format(str(e)))
+            print("获取最新 SHA 版本时出错: {}".format(str(e)))
         
         return None
 
     def download_update(self):
         self.current_step += 1
         print("")
-        print("Step {}: Creating temporary directory...".format(self.current_step))
+        print("步骤 {}: 创建临时目录...".format(self.current_step))
         try:
             self.utils.create_folder(self.temporary_dir)
-            print("  Temporary directory created.")
+            print("  临时目录已创建。")
             
             self.current_step += 1
-            print("Step {}: Downloading update package...".format(self.current_step))
+            print("步骤 {}: 下载更新包...".format(self.current_step))
             print("  ", end="")
             file_path = os.path.join(self.temporary_dir, os.path.basename(self.download_repo_url))
             self.fetcher.download_and_save_file(self.download_repo_url, file_path)
             
             if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                print("  Update package downloaded ({:.1f} KB)".format(os.path.getsize(file_path)/1024))
+                print("  更新包已下载 ({:.1f} KB)".format(os.path.getsize(file_path)/1024))
                 
                 self.current_step += 1
-                print("Step {}: Extracting files...".format(self.current_step))
+                print("步骤 {}: 解压文件...".format(self.current_step))
                 self.utils.extract_zip_file(file_path)
-                print("  Files extracted successfully")
+                print("  文件解压成功")
                 return True
             else:
-                print("  Download failed or file is empty")
+                print("  下载失败或文件为空")
                 return False
         except Exception as e:
-            print("  Error during download/extraction: {}".format(str(e)))
+            print("  下载/解压过程中出错: {}".format(str(e)))
             return False
 
     def update_files(self):
         self.current_step += 1
-        print("Step {}: Updating files...".format(self.current_step))
+        print("步骤 {}: 更新文件...".format(self.current_step))
         try:
             target_dir = os.path.join(self.temporary_dir, "OpCore-Simplify-main")
             if not os.path.exists(target_dir):
                 target_dir = os.path.join(self.temporary_dir, "main", "OpCore-Simplify-main")
                 
             if not os.path.exists(target_dir):
-                print("  Could not locate extracted files directory")
+                print("  无法找到解压后的文件目录")
                 return False
                 
             file_paths = self.utils.find_matching_paths(target_dir, type_filter="file")
             
             total_files = len(file_paths)
-            print("  Found {} files to update".format(total_files))
+            print("  找到 {} 个文件需要更新".format(total_files))
             
             updated_count = 0
             for index, (path, type) in enumerate(file_paths, start=1):
@@ -94,7 +94,7 @@ class Updater:
                 
                 self.utils.create_folder(os.path.dirname(destination))
                 
-                print("    Updating [{}/{}]: {}".format(index, total_files, os.path.basename(path)), end="\r")
+                print("    更新中 [{}/{}]: {}".format(index, total_files, os.path.basename(path)), end="\r")
                 
                 try:
                     shutil.move(source, destination)
@@ -105,33 +105,33 @@ class Updater:
                             "args": ["chmod", "+x", destination]
                         })
                 except Exception as e:
-                    print("      Failed to update {}: {}".format(path, str(e)))
+                    print("      更新 {} 失败: {}".format(path, str(e)))
             
             print("")
-            print("  Successfully updated {}/{} files".format(updated_count, total_files))
+            print("  成功更新了 {}/{} 个文件".format(updated_count, total_files))
             
             self.current_step += 1
-            print("Step {}: Cleaning up temporary files...".format(self.current_step))
+            print("步骤 {}: 清理临时文件...".format(self.current_step))
             shutil.rmtree(self.temporary_dir)
-            print("  Cleanup complete")
+            print("  清理完成")
             
             return True
         except Exception as e:
-            print("  Error during file update: {}".format(str(e)))
+            print("  文件更新过程中出错: {}".format(str(e)))
             return False
 
     def save_latest_sha_version(self, latest_sha):
         try:
             self.utils.write_file(self.sha_version, latest_sha.encode())
             self.current_step += 1
-            print("Step {}: Version information updated.".format(self.current_step))
+            print("步骤 {}: 版本信息已更新。".format(self.current_step))
             return True
         except Exception as e:
-            print("Failed to save version information: {}".format(str(e)))
+            print("保存版本信息失败: {}".format(str(e)))
             return False
 
     def run_update(self):
-        self.utils.head("Check for Updates")
+        self.utils.head("检查更新")
         print("")
         
         current_sha_version = self.get_current_sha_version()
@@ -140,62 +140,62 @@ class Updater:
         print("")
 
         if latest_sha_version is None:
-            print("Could not verify the latest version from GitHub.")
-            print("Current script SHA version: {}".format(current_sha_version))
-            print("Please check your internet connection and try again later.")
+            print("无法从 GitHub 验证最新版本。")
+            print("当前脚本 SHA 版本: {}".format(current_sha_version))
+            print("请检查您的网络连接并重试。")
             print("")
             
             while True:
-                user_input = self.utils.request_input("Do you want to skip the update process? (yes/No): ").strip().lower()
+                user_input = self.utils.request_input("是否跳过更新过程？(yes/no): ").strip().lower()
                 if user_input == "yes":
                     print("")
-                    print("Update process skipped.")
+                    print("更新过程已跳过。")
                     return False
                 elif user_input == "no":
                     print("")
-                    print("Continuing with update using default version check...")
+                    print("使用默认版本检查继续更新...")
                     latest_sha_version = "update_forced_by_user"
                     break
                 else:
-                    print("\033[91mInvalid selection, please try again.\033[0m\n\n")
+                    print("\033[91m无效选择，请重试。\033[0m\n\n")
         else:
-            print("Current script SHA version: {}".format(current_sha_version))
-            print("Latest script SHA version: {}".format(latest_sha_version))
+            print("当前脚本 SHA 版本: {}".format(current_sha_version))
+            print("最新脚本 SHA 版本: {}".format(latest_sha_version))
         
         print("")
         
         if latest_sha_version != current_sha_version:
-            print("Update available!")
-            print("Updating from version {} to {}".format(current_sha_version, latest_sha_version))
+            print("有可用更新！")
+            print("正在从版本 {} 更新到 {}".format(current_sha_version, latest_sha_version))
             print("")
-            print("Starting update process...")
+            print("开始更新过程...")
             
             if not self.download_update():
                 print("")
-                print("  Update failed: Could not download or extract update package")
+                print("  更新失败: 无法下载或解压更新包")
 
                 if os.path.exists(self.temporary_dir):
                     self.current_step += 1
-                    print("Step {}: Cleaning up temporary files...".format(self.current_step))
+                    print("步骤 {}: 清理临时文件...".format(self.current_step))
                     shutil.rmtree(self.temporary_dir)
-                    print("  Cleanup complete")
+                    print("  清理完成")
 
                 return False
                 
             if not self.update_files():
                 print("")
-                print("  Update failed: Could not update files")
+                print("  更新失败: 无法更新文件")
                 return False
                 
             if not self.save_latest_sha_version(latest_sha_version):
                 print("")
-                print("  Update completed but version information could not be saved")
+                print("  更新已完成，但版本信息无法保存")
             
             print("")
-            print("Update completed successfully!")
+            print("更新成功完成！")
             print("")
-            print("The program needs to restart to complete the update process.")
+            print("程序需要重启以完成更新过程。")
             return True
         else:
-            print("You are already using the latest version")
+            print("您已经在使用最新版本")
             return False

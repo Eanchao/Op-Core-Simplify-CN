@@ -10,7 +10,7 @@ class MacDevice:
         self.last_supported_version = last_supported_version or os_data.get_latest_darwin_version()
 
 mac_devices = [
-    # iMac Models
+    # iMac型号
     MacDevice("iMac11,1", "i7-860", "Lynnfield", "ATI Radeon HD 4850", "10.2.0", "17.99.99"),
     MacDevice("iMac11,2", "i5-680", "Clarkdale", "ATI Radeon HD 4670", "10.3.0", "17.99.99"),
     MacDevice("iMac11,3", "i7-870", "Clarkdale", "ATI Radeon HD 5670", "10.3.0", "17.99.99"),
@@ -34,11 +34,11 @@ mac_devices = [
     MacDevice("iMac19,2", "i5-8500", "Coffee Lake", "AMD Radeon Pro 555X", "18.5.0", "24.99.99"),
     MacDevice("iMac20,1", "i5-10500", "Comet Lake", "AMD Radeon Pro 5300", "19.6.0"),
     MacDevice("iMac20,2", "i9-10910", "Comet Lake", "AMD Radeon Pro 5300", "19.6.0"),
-    # MacBook Models
+    # MacBook型号
     MacDevice("MacBook8,1", "M-5Y51", "Broadwell", None, "14.1.0", "20.99.99"),
     MacDevice("MacBook9,1", "m3-6Y30", "Skylake", None, "15.4.0", "21.99.99"),
     MacDevice("MacBook10,1", "m3-7Y32", "Kaby Lake", None, "16.6.0", "22.99.99"),
-    # MacBookAir Models
+    # MacBookAir型号
     MacDevice("MacBookAir4,1", "i5-2467M", "Sandy Bridge", None, "11.0.0", "17.99.99"),
     MacDevice("MacBookAir4,2", "i5-2557M", "Sandy Bridge", None, "11.0.0", "17.99.99"),
     MacDevice("MacBookAir5,1", "i5-3317U", "Ivy Bridge", None, "11.4.0", "19.99.99"),
@@ -50,7 +50,7 @@ mac_devices = [
     MacDevice("MacBookAir8,1", "i5-8210Y", "Amber Lake", None, "18.2.0", "24.99.99"),
     MacDevice("MacBookAir8,2", "i5-8210Y", "Amber Lake", None, "18.6.0", "24.99.99"),
     MacDevice("MacBookAir9,1", "i3-1000NG4", "Ice Lake", None, "19.4.0", "24.99.99"),
-    # MacBookPro Models
+    # MacBookPro型号
     MacDevice("MacBookPro6,1", "i7-640M", "Arrandale", "NVIDIA GeForce GT 330M", "10.3.0", "17.99.99"),
     MacDevice("MacBookPro6,2", "i7-640M", "Arrandale", "NVIDIA GeForce GT 330M", "10.3.0", "17.99.99"),
     MacDevice("MacBookPro8,1", "i5-2415M", "Sandy Bridge", None, "10.6.0", "17.99.99"),
@@ -80,7 +80,7 @@ mac_devices = [
     MacDevice("MacBookPro16,2", "i5-1038NG7", "Ice Lake", None, "19.4.0"),
     MacDevice("MacBookPro16,3", "i5-8257U", "Coffee Lake", None, "19.4.0", "24.99.99"),
     MacDevice("MacBookPro16,4", "i7-9750H", "Coffee Lake", "AMD Radeon Pro 5600M", "19.0.0"),
-    # Macmini Models
+    # Macmini型号
     MacDevice("Macmini5,1", "i5-2415M", "Sandy Bridge", None, "11.0.0", "17.99.99"),
     MacDevice("Macmini5,2", "i5-2520M", "Sandy Bridge", None, "11.0.0", "17.99.99"),
     MacDevice("Macmini5,3", "i7-2635QM", "Sandy Bridge", None, "11.0.0", "17.99.99"),
@@ -88,9 +88,9 @@ mac_devices = [
     MacDevice("Macmini6,2", "i7-3615QM", "Ivy Bridge", None, "10.8.1", "19.99.99"),
     MacDevice("Macmini7,1", "i5-4260U", "Haswell", None, "14.0.0", "21.99.99"),
     MacDevice("Macmini8,1", "i7-8700B", "Coffee Lake", None, "18.0.0", "24.99.99"),
-    # iMacPro Models
+    # iMacPro型号
     MacDevice("iMacPro1,1", "W-2140B", "Skylake-W", "AMD Radeon RX Vega 56", "17.3.0", "24.99.99"),
-    # MacPro Models
+    # MacPro型号
     MacDevice("MacPro5,1", "X5675 x2", "Nehalem/Westmere", "ATI Radeon HD 5770", "10.4.0", "18.99.99"),
     MacDevice("MacPro6,1", "E5-1620 v2", "Ivy Bridge EP", "AMD FirePro D300", "13.0.0", "21.99.99"),
     MacDevice("MacPro7,1", "W-3245M", "Cascade Lake-W", "AMD Radeon Pro 580X", "19.0.0")

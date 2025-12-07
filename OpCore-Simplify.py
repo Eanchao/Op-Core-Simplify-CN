@@ -37,19 +37,19 @@ class OCPE:
         self.ac.dsdt = self.ac.acpi.acpi_tables = None
 
         while True:
-            self.u.head("Select hardware report")
+            self.u.head("选择硬件报告")
             print("")
             if os.name == "nt":
-                print("\033[1;93mNote:\033[0m")
-                print("- Ensure you are using the latest version of Hardware Sniffer before generating the hardware report.")
-                print("- Hardware Sniffer will not collect information related to Resizable BAR option of GPU (disabled by default) and monitor connections in Windows PE.")
+                print("\033[1;93m注意：\033[0m")
+                print("- 请确保您使用的是最新版本的 Hardware Sniffer 生成硬件报告。")
+                print("- Hardware Sniffer 不会收集 GPU 可调整 BAR 选项（默认禁用）和 Windows PE 中的显示器连接信息。")
                 print("")
-                print("E. Export hardware report (Recommended)")
+                print("E. 导出硬件报告（推荐）")
                 print("")
-            print("Q. Quit")
+            print("Q. 退出")
             print("")
         
-            user_input = self.u.request_input("Drag and drop your hardware report here (.JSON){}: ".format(" or type \"E\" to export" if os.name == "nt" else ""))
+            user_input = self.u.request_input("将硬件报告拖放到此处 (.JSON){}: ".format(" 或输入 \"E\" 导出" if os.name == "nt" else ""))
             if user_input.lower() == "q":
                 self.u.exit_program()
             if user_input.lower() == "e":
@@ -60,9 +60,9 @@ class OCPE:
 
                 report_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SysReport")
 
-                self.u.head("Exporting Hardware Report")
+                self.u.head("导出硬件报告")
                 print("")
-                print("Exporting hardware report to {}...".format(report_dir))
+                print("将硬件报告导出到 {}...".format(report_dir))
                 
                 output = self.r.run({
                     "args":[hardware_sniffer, "-e", "-o", report_dir]
@@ -71,17 +71,17 @@ class OCPE:
                 if output[-1] != 0:
                     error_code = output[-1]
                     if error_code == 3:
-                        error_message = "Error collecting hardware."
+                        error_message = "导出硬件报告时出错：无法收集硬件信息。"
                     elif error_code == 4:
-                        error_message = "Error generating hardware report."
+                        error_message = "导出硬件报告时出错：无法生成硬件报告。"
                     elif error_code == 5:
-                        error_message = "Error dumping ACPI tables."
+                        error_message = "导出硬件报告时出错：无法转储ACPI表。"
                     else:
-                        error_message = "Unknown error."
+                        error_message = "未知错误。"
 
                     print("")
-                    print("Could not export the hardware report. {}".format(error_message))
-                    print("Please try again or using Hardware Sniffer manually.")
+                    print("无法导出硬件报告。 {}".format(error_message))
+                    print("请尝试重新导出或手动使用硬件报告。")
                     print("")
                     self.u.request_input()
                     continue
@@ -101,34 +101,30 @@ class OCPE:
             self.v.show_validation_report(path, is_valid, errors, warnings)
             if not is_valid or errors:
                 print("")
-                print("\033[32mSuggestion:\033[0m Please re-export the hardware report and try again.")
+                print("\033[32m建议：\033[0m 请重新导出硬件报告并再次尝试。")
                 print("")
-                self.u.request_input("Press Enter to go back...")
+                self.u.request_input("按 Enter 键返回...")
             else:
                 return path, data
             
     def show_oclp_warning(self):
         while True:
-            self.u.head("OpenCore Legacy Patcher Warning")
+            self.u.head("OpenCore Legacy Patcher 警告")
             print("")
-            print("1. OpenCore Legacy Patcher is the only solution to enable dropped GPU and Broadcom WiFi")
-            print("   support in newer macOS versions, as well as to bring back AppleHDA for macOS Tahoe 26.")
+            print("1. OpenCore Legacy Patcher 是唯一的解决方案，用于在较新的 macOS 版本中启用掉落的 GPU 和 Broadcom WiFi 支持，以及为 macOS Tahoe 26 带来 AppleHDA。")
             print("")
-            print("2. OpenCore Legacy Patcher disables macOS security features including SIP and AMFI, which may")
-            print("   lead to issues such as requiring full installers for updates, application crashes, and")
-            print("   system instability.")
+            print("2. OpenCore Legacy Patcher 会禁用 macOS 的安全功能，包括 SIP 和 AMFI，这可能会导致更新需要完整安装器、应用程序崩溃和系统不稳定等问题。")
             print("")
-            print("3. OpenCore Legacy Patcher is not officially supported for Hackintosh community.")
+            print("3. OpenCore Legacy Patcher 不是 Hackintosh 社区官方支持的解决方案。")
             print("")
-            print("\033[1;91mImportant:\033[0m")
-            print("Please consider these risks carefully before proceeding.")
+            print("\033[1;91m重要：\033[0m")
+            print("请仔细考虑这些风险，再继续。")
             print("")
-            print("\033[1;96mSupport for macOS Tahoe 26:\033[0m")
-            print("To patch macOS Tahoe 26, you must download OpenCore-Patcher 3.0.0 or newer from")
-            print("my repository: \033[4mlzhoang2801/OpenCore-Legacy-Patcher\033[0m on GitHub.")
-            print("Older or official Dortania releases are NOT supported for Tahoe 26.")
+            print("\033[1;96m对 macOS Tahoe 26 的支持：\033[0m")
+            print("要修补 macOS Tahoe 26，您必须从我的存储库下载 OpenCore-Patcher 3.0.0 或更新版本：\033[4mlzhoang2801/OpenCore-Legacy-Patcher\033[0m（GitHub）。")
+            print("旧版或官方 Dortania 发布版不支持 macOS Tahoe 26。")
             print("")
-            option = self.u.request_input("Do you want to continue with OpenCore Legacy Patcher? (yes/No): ").strip().lower()
+            option = self.u.request_input("是否继续使用 OpenCore Legacy Patcher？ (yes/no): ").strip().lower()
             if option == "yes":
                 return True
             elif option == "no":
@@ -160,11 +156,11 @@ class OCPE:
                 break
 
         while True:
-            self.u.head("Select macOS Version")
+            self.u.head("选择 macOS 版本")
             if native_macos_version[1][:2] != suggested_macos_version[:2]:
                 print("")
-                print("\033[1;36mSuggested macOS version:\033[0m")
-                print("- For better compatibility and stability, we suggest you to use only {} or older.".format(os_data.get_macos_name_by_darwin(suggested_macos_version)))
+                print("\033[1;36m建议的 macOS 版本：\033[0m")
+                print("- 为了更好的兼容性和稳定性，我们建议您仅使用 {} 或更早版本。".format(os_data.get_macos_name_by_darwin(suggested_macos_version)))
             print("")
             print("Available macOS versions:")
             print("")
@@ -176,17 +172,17 @@ class OCPE:
 
             for darwin_version in range(min_version, max_version + 1):
                 name = os_data.get_macos_name_by_darwin(str(darwin_version))
-                label = " (\033[1;93mRequires OpenCore Legacy Patcher\033[0m)" if oclp_min <= darwin_version <= oclp_max else ""
+                label = " (\033[1;93m需要 OpenCore Legacy Patcher\033[0m)" if oclp_min <= darwin_version <= oclp_max else ""
                 print("   {}. {}{}".format(darwin_version, name, label))
 
             print("")
-            print("\033[1;93mNote:\033[0m")
-            print("- To select a major version, enter the number (e.g., 19).")
-            print("- To specify a full version, use the Darwin version format (e.g., 22.4.6).")
+            print("\033[1;93m注意：\033[0m")
+            print("- 要选择主要版本，请输入数字（例如，19）。")
+            print("- 要指定完整版本，请使用 Darwin 版本格式（例如，22.4.6）。")
             print("")
-            print("Q. Quit")
+            print("Q. 退出")
             print("")
-            option = self.u.request_input("Please enter the macOS version you want to use (default: {}): ".format(os_data.get_macos_name_by_darwin(suggested_macos_version))) or suggested_macos_version
+            option = self.u.request_input("请输入您要使用的 macOS 版本（默认：{}）： ".format(os_data.get_macos_name_by_darwin(suggested_macos_version))) or suggested_macos_version
             if option.lower() == "q":
                 self.u.exit_program()
 
@@ -201,20 +197,20 @@ class OCPE:
 
     def build_opencore_efi(self, hardware_report, disabled_devices, smbios_model, macos_version, needs_oclp):
         steps = [
-            "Copying EFI base to results folder",
-            "Applying ACPI patches",
-            "Copying kexts and snapshotting to config.plist",
-            "Generating config.plist",
-            "Cleaning up unused drivers, resources, and tools"
+            "复制 EFI 基础到结果文件夹",
+            "应用 ACPI 补丁",
+            "复制 kexts 和快照到 config.plist",
+            "生成 config.plist",
+            "清理未使用的驱动、资源和工具"
         ]
         
-        title = "Building OpenCore EFI"
+        title = "构建 OpenCore EFI"
 
         self.u.progress_bar(title, steps, 0)
         self.u.create_folder(self.result_dir, remove_content=True)
 
         if not os.path.exists(self.k.ock_files_dir):
-            raise Exception("Directory '{}' does not exist.".format(self.k.ock_files_dir))
+            raise Exception("目录 '{}' 不存在。".format(self.k.ock_files_dir))
         
         source_efi_dir = os.path.join(self.k.ock_files_dir, "OpenCorePkg")
         shutil.copytree(source_efi_dir, self.result_dir, dirs_exist_ok=True)
@@ -223,7 +219,7 @@ class OCPE:
         config_data = self.u.read_file(config_file)
         
         if not config_data:
-            raise Exception("Error: The file {} does not exist.".format(config_file))
+            raise Exception("错误：文件 {} 不存在。".format(config_file))
         
         self.u.progress_bar(title, steps, 1)
         config_data["ACPI"]["Add"] = []
@@ -310,11 +306,11 @@ class OCPE:
                 else:
                     os.remove(file_path)
             except Exception as e:
-                print("Failed to remove file: {}".format(e))
+                print("删除文件失败：{}".format(e))
         
         self.u.progress_bar(title, steps, len(steps), done=True)
         
-        print("OpenCore EFI build complete.")
+        print("OpenCore EFI 构建完成。")
         time.sleep(2)
         
     def check_bios_requirements(self, org_hardware_report, hardware_report):
@@ -323,51 +319,51 @@ class OCPE:
         org_firmware_type = org_hardware_report.get("BIOS", {}).get("Firmware Type", "Unknown")
         firmware_type = hardware_report.get("BIOS", {}).get("Firmware Type", "Unknown")
         if org_firmware_type == "Legacy" and firmware_type == "UEFI":
-            requirements.append("Enable UEFI mode (disable Legacy/CSM (Compatibility Support Module))")
+            requirements.append("启用 UEFI 模式（禁用 Legacy/CSM (兼容性支持模块)）")
 
         secure_boot = hardware_report.get("BIOS", {}).get("Secure Boot", "Unknown")
         if secure_boot != "Disabled":
-            requirements.append("Disable Secure Boot")
+            requirements.append("禁用 Secure Boot")
         
         if hardware_report.get("Motherboard", {}).get("Platform") == "Desktop" and hardware_report.get("Motherboard", {}).get("Chipset") in chipset_data.IntelChipsets[112:]:
             resizable_bar_enabled = any(gpu_props.get("Resizable BAR", "Disabled") == "Enabled" for gpu_props in hardware_report.get("GPU", {}).values())
             if not resizable_bar_enabled:
-                requirements.append("Enable Above 4G Decoding")
-                requirements.append("Disable Resizable BAR/Smart Access Memory")
+                requirements.append("启用 Above 4G Decoding")
+                requirements.append("禁用 Resizable BAR/Smart Access Memory")
                 
         return requirements
 
     def before_using_efi(self, org_hardware_report, hardware_report):
         while True:
-            self.u.head("Before Using EFI")
+            self.u.head("使用 EFI 前的准备")
             print("")                 
-            print("\033[93mPlease complete the following steps:\033[0m")
+            print("\033[93m请完成以下步骤：\033[0m")
             print("")
             
             bios_requirements = self.check_bios_requirements(org_hardware_report, hardware_report)
             if bios_requirements:
-                print("* BIOS/UEFI Settings Required:")
+                print("* BIOS/UEFI 设置要求：")
                 for requirement in bios_requirements:
                     print("    - {}".format(requirement))
                 print("")
             
-            print("* USB Mapping:")
-            print("    - Use USBToolBox tool to map USB ports.")
-            print("    - Add created UTBMap.kext into the {} folder.".format("EFI\\OC\\Kexts" if os.name == "nt" else "EFI/OC/Kexts"))
-            print("    - Remove UTBDefault.kext in the {} folder.".format("EFI\\OC\\Kexts" if os.name == "nt" else "EFI/OC/Kexts"))
-            print("    - Edit config.plist:")
-            print("        - Use ProperTree to open your config.plist.")
-            print("        - Run OC Snapshot by pressing Command/Ctrl + R.")
-            print("        - If you have more than 15 ports on a single controller, enable the XhciPortLimit patch.")
-            print("        - Save the file when finished.")
+            print("* USB 映射：")
+            print("    - 使用 USBToolBox 工具映射 USB 端口。")
+            print("    - 将创建的 UTBMap.kext 放入 {} 文件夹中。".format("EFI\\OC\\Kexts" if os.name == "nt" else "EFI/OC/Kexts"))
+            print("    - 从 {} 文件夹中删除 UTBDefault.kext。".format("EFI\\OC\\Kexts" if os.name == "nt" else "EFI/OC/Kexts"))
+            print("    - 编辑 config.plist：")
+            print("        - 使用 ProperTree 打开 config.plist。")
+            print("        - 按 Command/Ctrl + R 运行 OC Snapshot。")
+            print("        - 如果您的单个控制器上有超过 15 个端口，请启用 XhciPortLimit 补丁。")
+            print("        - 完成后保存文件。")
             print("")
-            print("Type \"AGREE\" to open the built EFI for you\n")
+            print("输入 \"AGREE\" 打开构建的 EFI\n")
             response = self.u.request_input("")
             if response.lower() == "agree":
                 self.u.open_folder(self.result_dir)
                 break
             else:
-                print("\033[91mInvalid input. Please try again.\033[0m")
+                print("\033[91m输入错误。请重新输入。\033[0m")
 
     def main(self):
         hardware_report_path = None
@@ -381,28 +377,28 @@ class OCPE:
         while True:
             self.u.head()
             print("")
-            print("  Hardware Report: {}".format(hardware_report_path or 'Not selected'))
+            print("  硬件报告： {}".format(hardware_report_path or '未选择'))
             if hardware_report_path:
                 print("")
-                print("  macOS Version:   {}".format(os_data.get_macos_name_by_darwin(macos_version) if macos_version else 'Not selected') + (' (' + macos_version + ')' if macos_version else '') + ('. \033[1;93mRequires OpenCore Legacy Patcher\033[0m' if needs_oclp else ''))
-                print("  SMBIOS:          {}".format(smbios_model or 'Not selected'))
+                print("  macOS Version:   {}".format(os_data.get_macos_name_by_darwin(macos_version) if macos_version else '未选择') + (' (' + macos_version + ')' if macos_version else '') + ('. \033[1;93m需要 OpenCore Legacy Patcher\033[0m' if needs_oclp else ''))
+                print("  SMBIOS:          {}".format(smbios_model or '未选择'))
                 if disabled_devices:
-                    print("  Disabled Devices:")
+                    print("  禁用设备：")
                     for device, _ in disabled_devices.items():
                         print("    - {}".format(device))
             print("")
 
-            print("1. Select Hardware Report")
-            print("2. Select macOS Version")
-            print("3. Customize ACPI Patch")
-            print("4. Customize Kexts")
-            print("5. Customize SMBIOS Model")
-            print("6. Build OpenCore EFI")
+            print("1. 选择硬件报告")
+            print("2. 选择 macOS 版本")
+            print("3. 自定义 ACPI 补丁")
+            print("4. 自定义 Kexts")
+            print("5. 自定义 SMBIOS 模型")
+            print("6. 构建 OpenCore EFI")
             print("")
-            print("Q. Quit")
+            print("Q. 退出")
             print("")
 
-            option = self.u.request_input("Select an option: ")
+            option = self.u.request_input("选择一个选项： ")
             if option.lower() == "q":
                 self.u.exit_program()
            
@@ -421,9 +417,9 @@ class OCPE:
             if not hardware_report_path:
                 self.u.head()
                 print("\n\n")
-                print("\033[1;93mPlease select a hardware report first.\033[0m")
+                print("\033[1;93m请先选择一个硬件报告。\033[0m")
                 print("\n\n")
-                self.u.request_input("Press Enter to go back...")
+                self.u.request_input("按[Enter]键返回...")
                 continue
 
             if option == "2":
@@ -451,20 +447,20 @@ class OCPE:
                 try:
                     self.o.gather_bootloader_kexts(self.k.kexts, macos_version)
                 except Exception as e:
-                    print("\033[91mError: {}\033[0m".format(e))
+                    print("\033[91m错误： {}\033[0m".format(e))
                     print("")
-                    self.u.request_input("Press Enter to continue...")
+                    self.u.request_input("按[Enter]键继续...")
                     continue
                 
                 self.build_opencore_efi(customized_hardware, disabled_devices, smbios_model, macos_version, needs_oclp)
                 self.before_using_efi(hardware_report, customized_hardware)
 
-                self.u.head("Result")
+                self.u.head("结果")
                 print("")
-                print("Your OpenCore EFI for {} has been built at:".format(customized_hardware.get("Motherboard").get("Name")))
+                print("您的 OpenCore EFI {} 已构建在：".format(customized_hardware.get("Motherboard").get("Name")))
                 print("\t{}".format(self.result_dir))
                 print("")
-                self.u.request_input("Press Enter to main menu...")
+                self.u.request_input("按[Enter]键返回主菜单...")
 
 if __name__ == '__main__':
     update_flag = updater.Updater().run_update()
@@ -476,7 +472,7 @@ if __name__ == '__main__':
         try:
             o.main()
         except Exception as e:
-            o.u.head("An Error Occurred")
+            o.u.head("发生了一个错误")
             print("")
             print(traceback.format_exc())
             o.u.request_input()

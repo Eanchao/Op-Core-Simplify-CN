@@ -1,3 +1,4 @@
+from Scripts import integrity_checker
 from Scripts.datasets import cpu_data
 from Scripts.datasets import kext_data
 from Scripts.datasets import os_data
@@ -15,6 +16,14 @@ except NameError:
     unicode = str
 
 class KextMaestro:
+    """
+    内核扩展管理类，用于管理和配置macOS系统上的内核扩展(kext)
+    主要功能包括：
+    - PCI ID提取
+    - Intel HEDT CPU检测
+    - 内核扩展兼容性检查
+    - 内核扩展安装和配置
+    """
     def __init__(self):
         self.utils = utils.Utils()
         self.matching_keys = [
@@ -29,6 +38,15 @@ class KextMaestro:
         self.kexts = kext_data.kexts
         
     def extract_pci_id(self, kext_path):
+        """
+        从指定的kext路径中提取PCI ID信息
+        
+        参数:
+            kext_path: kext文件的路径
+        
+        返回:
+            包含PCI ID的列表，格式为["厂商ID-设备ID"]
+        """
         if not os.path.exists(kext_path):
             return []
 
@@ -69,6 +87,16 @@ class KextMaestro:
         return pci_ids
 
     def is_intel_hedt_cpu(self, processor_name, cpu_codename):
+        """
+        检测CPU是否为Intel HEDT (High-End Desktop) CPU
+        
+        参数:
+            processor_name: CPU处理器名称
+            cpu_codename: CPU代号
+        
+        返回:
+            布尔值，表示是否为Intel HEDT CPU
+        """
         if cpu_codename in cpu_data.IntelCPUGenerations[45:66]:
             return cpu_codename.endswith(("-X", "-P", "-W", "-E", "-EP", "-EX"))
         
@@ -78,6 +106,14 @@ class KextMaestro:
         return False
 
     def check_kext(self, index, target_darwin_version, allow_unsupported_kexts=False):
+        """
+        检查内核扩展是否兼容目标macOS版本
+        
+        参数:
+            index: kext在kexts列表中的索引
+            target_darwin_version: 目标Darwin版本号
+            allow_unsupported_kexts: 是否允许加载不支持的kext
+        """
         kext = self.kexts[index]
 
         if kext.checked or not (allow_unsupported_kexts or self.utils.parse_darwin_version(kext.min_darwin_version) <= self.utils.parse_darwin_version(target_darwin_version) <= self.utils.parse_darwin_version(kext.max_darwin_version)):
@@ -96,9 +132,21 @@ class KextMaestro:
                     other_kext.checked = False
 
     def select_required_kexts(self, hardware_report, macos_version, needs_oclp, acpi_patches):
-        self.utils.head("Select Required Kernel Extensions")
+        """
+        根据硬件报告和macOS版本选择必要的内核扩展
+        
+        参数:
+            hardware_report: 硬件报告信息
+            macos_version: macOS版本号
+            needs_oclp: 是否需要OpenCore Legacy Patcher
+            acpi_patches: ACPI补丁列表
+        
+        返回:
+            更新后的needs_oclp值
+        """
+        self.utils.head("选择必要的内核扩展")
         print("")
-        print("Checking for required kernel extensions...")
+        print("正在检查必要的内核扩展...")
 
         for kext in self.kexts:
             kext.checked = kext.required
@@ -122,14 +170,14 @@ class KextMaestro:
         for codec_properties in hardware_report.get("Sound", {}).values():
             if codec_properties.get("Device ID") in codec_layouts.data:
                 if self.utils.parse_darwin_version(macos_version) >= self.utils.parse_darwin_version("25.0.0"):
-                    print("\n\033[1;93mNote:\033[0m Since macOS Tahoe 26 DP2, Apple has removed AppleHDA kext and uses the Apple T2 chip for audio management.")
-                    print("To use AppleALC, you must rollback AppleHDA. Alternatively, you can use VoodooHDA.")
+                    print("\n\033[1;93m注意:\033[0m 从macOS Tahoe 26 DP2开始，Apple已移除AppleHDA kext并使用Apple T2芯片进行音频管理。")
+                    print("要使用AppleALC，您必须回滚AppleHDA。或者，您可以使用VoodooHDA。")
                     print("")
-                    print("1. \033[1mAppleALC\033[0m - Requires AppleHDA rollback with \033[1;93mOpenCore Legacy Patcher\033[0m")
-                    print("2. \033[1mVoodooHDA\033[0m - Lower audio quality, manual injection to /Library/Extensions")
+                    print("1. \033[1mAppleALC\033[0m - 需要使用\033[1;93mOpenCore Legacy Patcher\033[0m回滚AppleHDA")
+                    print("2. \033[1mVoodooHDA\033[0m - 音质较低，需要手动注入到/Library/Extensions")
                     print("")
                     while True:
-                        kext_option = self.utils.request_input("Select audio kext for your system: ").strip()
+                        kext_option = self.utils.request_input("选择系统的音频kext: ").strip()
                         if kext_option == "1":
                             needs_oclp = True
                             selected_kexts.append("AppleALC")
@@ -137,7 +185,7 @@ class KextMaestro:
                         elif kext_option == "2":
                             break
                         else:
-                            print("\033[91mInvalid selection, please try again.\033[0m\n\n")
+                            print("\033[91m无效选择，请重试。\033[0m\n\n")
                 else:
                     selected_kexts.append("AppleALC")
         
@@ -166,49 +214,49 @@ class KextMaestro:
                     break
 
                 if gpu_props.get("Codename") in {"Navi 21", "Navi 23"}:
-                    print("\n*** Found {} is AMD {} GPU.".format(gpu_name, gpu_props.get("Codename")))
+                    print("\n*** 发现{}是AMD {} GPU。".format(gpu_name, gpu_props.get("Codename")))
                     print("")
-                    print("\033[91mImportant: Black Screen Fix\033[0m")
-                    print("If you experience a black screen after verbose mode:")
-                    print("    1. Use ProperTree to open config.plist")
-                    print("    2. Navigate to NVRAM -> Add -> 7C436110-AB2A-4BBB-A880-FE41995C9F82 -> boot-args")
-                    print("    3. Remove \"-v debug=0x100 keepsyms=1\" from boot-args")
+                    print("\033[91m重要: 黑屏修复\033[0m")
+                    print("如果在verbose模式后遇到黑屏:")
+                    print("    1. 使用ProperTree打开config.plist")
+                    print("    2. 导航到NVRAM -> Add -> 7C436110-AB2A-4BBB-A880-FE41995C9F82 -> boot-args")
+                    print("    3. 从boot-args中移除\"-v debug=0x100 keepsyms=1\"")
                     print("")
                     if self.utils.parse_darwin_version(macos_version) >= self.utils.parse_darwin_version("25.0.0"):
                         recommended_option = 1
                         recommended_name = "NootRX"
                         max_option = 3
-                        print("\033[1;93mNote:\033[0m Since macOS Tahoe 26, WhateverGreen has known connector patching issues for AMD {} GPUs.".format(gpu_props.get("Codename")))
-                        print("To avoid this, you can use NootRX or choose not to install a GPU kext.")
+                        print("\033[1;93m注意:\033[0m 从macOS Tahoe 26开始，WhateverGreen对AMD {} GPU存在已知的连接器补丁问题。".format(gpu_props.get("Codename")))
+                        print("要避免这种情况，您可以使用NootRX或选择不安装GPU kext。")
                         print("")
-                        print("1. \033[1mNootRX\033[0m - Uses latest GPU firmware")
-                        print("2. \033[1mWhateverGreen\033[0m - Uses original Apple firmware")
-                        print("3. \033[1mDon't use any kext\033[0m")
+                        print("1. \033[1mNootRX\033[0m - 使用最新的GPU固件")
+                        print("2. \033[1mWhateverGreen\033[0m - 使用原始的Apple固件")
+                        print("3. \033[1m不使用任何kext\033[0m")
                     else:
                         recommended_option = 2
                         recommended_name = "WhateverGreen"
                         max_option = 2
-                        print("\033[1;93mNote:\033[0m")
-                        print("- AMD {} GPUs have two available kext options:".format(gpu_props.get("Codename")))
-                        print("- You can try different kexts after installation to find the best one for your system")
+                        print("\033[1;93m注意:\033[0m")
+                        print("- AMD {} GPU有两个可用的kext选项:".format(gpu_props.get("Codename")))
+                        print("- 安装后您可以尝试不同的kext，以找到最适合您系统的一个")
                         print("")
-                        print("1. \033[1mNootRX\033[0m - Uses latest GPU firmware")
-                        print("2. \033[1mWhateverGreen\033[0m - Uses original Apple firmware")
+                        print("1. \033[1mNootRX\033[0m - 使用最新的GPU固件")
+                        print("2. \033[1mWhateverGreen\033[0m - 使用原始的Apple固件")
                     print("")
 
                     if any(other_gpu_props.get("Manufacturer") == "Intel" for other_gpu_props in hardware_report.get("GPU", {}).values()):
-                        print("\033[91mImportant:\033[0m NootRX kext is not compatible with Intel GPUs")
-                        print("Automatically selecting WhateverGreen kext due to Intel GPU compatibility")
+                        print("\033[91m重要:\033[0m NootRX kext与Intel GPU不兼容")
+                        print("由于Intel GPU兼容性，自动选择WhateverGreen kext")
                         print("")
-                        self.utils.request_input("Press Enter to continue...")
+                        self.utils.request_input("按Enter键继续...")
                         continue
 
-                    kext_option = self.utils.request_input("Select kext for your AMD {} GPU (default: {}): ".format(gpu_props.get("Codename"), recommended_name)).strip() or str(recommended_option)
+                    kext_option = self.utils.request_input("为您的AMD {} GPU选择kext (默认值: {}): ".format(gpu_props.get("Codename"), recommended_name)).strip() or str(recommended_option)
                     
                     if kext_option.isdigit() and 0 < int(kext_option) < max_option + 1:
                         selected_option = int(kext_option)
                     else:
-                        print("\033[93mInvalid selection, using recommended option: {}\033[0m".format(recommended_option))
+                        print("\033[93m无效选择，使用推荐选项: {}\033[0m".format(recommended_option))
                         selected_option = recommended_option
 
                     if selected_option == 1:
@@ -219,13 +267,13 @@ class KextMaestro:
                     continue
 
                 if self.utils.parse_darwin_version(macos_version) >= self.utils.parse_darwin_version("25.0.0"):
-                    print("\n*** Found {} is AMD {} GPU.".format(gpu_name, gpu_props.get("Codename")))
+                    print("\n*** 发现{}是AMD {} GPU。".format(gpu_name, gpu_props.get("Codename")))
                     print("")
-                    print("\033[1;93mNote:\033[0m Since macOS Tahoe 26, WhateverGreen has known connector patching issues for AMD GPUs.")
-                    print("The current recommendation is to not use WhateverGreen.")
-                    print("However, you can still try adding it to see if it works on your system.")
+                    print("\033[1;93m注意:\033[0m 从macOS Tahoe 26开始，WhateverGreen对AMD GPU存在已知的连接器补丁问题。")
+                    print("当前建议不使用WhateverGreen。")
+                    print("但是，您仍然可以尝试添加它，看看它是否在您的系统上工作。")
                     print("")
-                    self.utils.request_input("Press Enter to continue...")
+                    self.utils.request_input("按Enter键继续...")
                     break
 
                 selected_kexts.append("WhateverGreen")
@@ -252,41 +300,41 @@ class KextMaestro:
             elif device_id in pci_data.BroadcomWiFiIDs[16:18] and self.utils.parse_darwin_version(macos_version) >= self.utils.parse_darwin_version("20.0.0"):
                 selected_kexts.append("AirportBrcmFixup")
             elif device_id in pci_data.IntelWiFiIDs:
-                print("\n*** Found {} is Intel WiFi device.".format(network_name))
+                print("\n*** 发现{}是Intel WiFi设备。".format(network_name))
                 print("")
-                print("\033[1;93mNote:\033[0m Intel WiFi devices have two available kext options:")
+                print("\033[1;93m注意:\033[0m Intel WiFi设备有两个可用的kext选项:")
                 print("")
-                print("1. \033[1mAirportItlwm\033[0m - Uses native WiFi settings menu")
-                print("   • Provides Handoff, Universal Clipboard, Location Services, Instant Hotspot support")
-                print("   • Supports enterprise-level security")
+                print("1. \033[1mAirportItlwm\033[0m - 使用原生WiFi设置菜单")
+                print("   • 提供接力(Handoff)、通用剪贴板(Universal Clipboard)、定位服务(Location Services)、即时热点(Instant Hotspot)支持")
+                print("   • 支持企业级安全")
 
                 if self.utils.parse_darwin_version(macos_version) >= self.utils.parse_darwin_version("24.0.0"):
-                    print("   • \033[91mSince macOS Sequoia 15\033[0m: Can work with OCLP root patch but may cause issues")
+                    print("   • \033[91m从macOS Sequoia 15开始\033[0m: 可以与OCLP根补丁一起使用，但可能会导致问题")
                 elif self.utils.parse_darwin_version(macos_version) >= self.utils.parse_darwin_version("23.0.0"):
-                    print("   • \033[91mOn macOS Sonoma 14\033[0m: iServices won't work unless using OCLP root patch")
+                    print("   • \033[91m在macOS Sonoma 14上\033[0m: 除非使用OCLP根补丁，否则iServices将无法工作")
                 
                 print("")
-                print("2. \033[1mitlwm\033[0m - More stable overall")
-                print("   • Works with HeliPort app instead of native WiFi settings menu")
-                print("   • No Apple Continuity features and enterprise-level security")
-                print("   • Can connect to Hidden Networks")
+                print("2. \033[1mitlwm\033[0m - 整体更稳定")
+                print("   • 使用 HeliPort 应用程序代替原生WiFi设置菜单")
+                print("   • 没有 Apple 连续性(Apple Continuity)功能和企业级安全")
+                print("   • 可以连接到隐藏网络")
                 print("")
 
                 recommended_option = 2 if self.utils.parse_darwin_version(macos_version) >= self.utils.parse_darwin_version("23.0.0") else 1
                 recommended_name = "itlwm" if recommended_option == 2 else "AirportItlwm"
 
                 if "Beta" in os_data.get_macos_name_by_darwin(macos_version):
-                    print("\033[91mImportant:\033[0m For macOS Beta versions, only itlwm kext is supported")
+                    print("\033[91m重要:\033[0m 对于macOS Beta版本，仅支持itlwm kext")
                     print("")
-                    self.utils.request_input("Press Enter to continue...")
+                    self.utils.request_input("按Enter键继续...")
                     selected_option = recommended_option
                 else:
-                    kext_option = self.utils.request_input("Select kext for your Intel WiFi device (default: {}): ".format(recommended_name)).strip() or str(recommended_option)
+                    kext_option = self.utils.request_input("为您的Intel WiFi设备选择kext (默认值: {}): ".format(recommended_name)).strip() or str(recommended_option)
                     
                     if kext_option.isdigit() and 0 < int(kext_option) < 3:
                         selected_option = int(kext_option)
                     else:
-                        print("\033[91mInvalid selection, using recommended option: {}\033[0m".format(recommended_option))
+                        print("\033[91m无效选择，使用推荐选项: {}\033[0m".format(recommended_option))
                         selected_option = recommended_option
                 
                 if selected_option == 2:
@@ -298,17 +346,17 @@ class KextMaestro:
                         selected_kexts.append("IOSkywalkFamily")
                     elif self.utils.parse_darwin_version(macos_version) >= self.utils.parse_darwin_version("23.0.0"):
                         print("")
-                        print("\033[1;93mNote:\033[0m Since macOS Sonoma 14, iServices won't work with AirportItlwm without patches")
+                        print("\033[1;93m注意:\033[0m 从macOS Sonoma 14开始，没有补丁的情况下，AirportItlwm的iServices将无法工作")
                         print("")
                         while True:
-                            option = self.utils.request_input("Apply OCLP root patch to fix iServices? (yes/No): ").strip().lower()
+                            option = self.utils.request_input("应用OCLP根补丁修复iServices? (yes/No): ").strip().lower()
                             if option == "yes":
                                 selected_kexts.append("IOSkywalkFamily")
                                 break
                             elif option == "no":
                                 break
                             else:
-                                print("\033[91mInvalid selection, please try again.\033[0m\n\n")
+                                print("\033[91m无效选择，请重试。\033[0m\n\n")
             elif device_id in pci_data.AtherosWiFiIDs[:8]:
                 selected_kexts.append("corecaptureElCap")
                 if self.utils.parse_darwin_version(macos_version) > self.utils.parse_darwin_version("20.99.99"):
@@ -427,6 +475,13 @@ class KextMaestro:
         return needs_oclp
 
     def install_kexts_to_efi(self, macos_version, kexts_directory):
+        """
+        将选中的内核扩展安装到EFI目录
+        
+        参数:
+            macos_version: macOS版本号
+            kexts_directory: EFI中的kexts目录路径
+        """
         for kext in self.kexts:
             if kext.checked:
                 try:
@@ -461,6 +516,16 @@ class KextMaestro:
                     continue
 
     def process_kext(self, kexts_directory, kext_path):
+        """
+        处理kext文件，提取必要的信息
+        
+        参数:
+            kexts_directory: kext所在的目录
+            kext_path: kext的相对路径
+        
+        返回:
+            包含kext信息的字典
+        """
         try:
             plist_path = self.utils.find_matching_paths(os.path.join(kexts_directory, kext_path), extension_filter=".plist", name_filter="Info")[0][0]
             bundle_info = self.utils.read_file(os.path.join(kexts_directory, kext_path, plist_path))
@@ -488,6 +553,14 @@ class KextMaestro:
         }
 
     def modify_kexts(self, plist_path, hardware_report, macos_version):
+        """
+        根据硬件报告和macOS版本修改kext的Info.plist文件
+        
+        参数:
+            plist_path: Info.plist文件的路径
+            hardware_report: 硬件报告信息
+            macos_version: macOS版本号
+        """
         try:
             bundle_info = self.utils.read_file(plist_path)
 
@@ -516,6 +589,17 @@ class KextMaestro:
             return            
         
     def load_kexts(self, hardware_report, macos_version, kexts_directory):
+        """
+        加载kext信息并生成kernel_add配置
+        
+        参数:
+            hardware_report: 硬件报告信息
+            macos_version: macOS版本号
+            kexts_directory: kext所在的目录
+        
+        返回:
+            kernel_add配置列表
+        """
         kernel_add = []
         unload_kext = []
 
@@ -610,6 +694,12 @@ class KextMaestro:
         return kernel_add
 
     def uncheck_kext(self, index):
+        """
+        取消选中指定索引的kext
+        
+        参数:
+            index: kext在kexts列表中的索引
+        """
         kext = self.kexts[index]
         kext.checked = False
 
@@ -618,6 +708,16 @@ class KextMaestro:
                 other_kext.checked = False
 
     def verify_kext_compatibility(self, selected_kexts, target_darwin_version):
+        """
+        验证选中的kext是否与目标macOS版本兼容
+        
+        参数:
+            selected_kexts: 选中的kext列表
+            target_darwin_version: 目标Darwin版本号
+        
+        返回:
+            布尔值，表示是否允许加载不兼容的kext
+        """
         incompatible_kexts = []
         try:
             incompatible_kexts = [
@@ -640,18 +740,18 @@ class KextMaestro:
             return False
         
         while True:
-            self.utils.head("Kext Compatibility Check")
-            print("\nIncompatible kexts for the current macOS version ({}):\n".format(target_darwin_version))
+            self.utils.head("Kext兼容性检查")
+            print("\n与当前macOS版本不兼容的kext ({}):\n".format(target_darwin_version))
             
             for index, (kext_name, is_lilu_dependent) in enumerate(incompatible_kexts, start=1):
-                print("{:2}. {:25}{}".format(index, kext_name, " - Lilu Plugin" if is_lilu_dependent else ""))
+                print("{:2}. {:25}{}".format(index, kext_name, " - Lilu插件" if is_lilu_dependent else ""))
             
-            print("\n\033[1;93mNote:\033[0m")
-            print("- With Lilu plugins, using the \"-lilubetaall\" boot argument will force them to load.")
-            print("- Forcing unsupported kexts can cause system instability. \033[0;31mProceed with caution.\033[0m")
+            print("\n\033[1;93m注意:\033[0m")
+            print("- 使用Lilu插件时，使用\"-lilubetaall\"启动参数将强制加载它们。")
+            print("- 强制加载不支持的kext可能导致系统不稳定。 \033[0;31m请谨慎操作。\033[0m")
             print("")
             
-            option = self.utils.request_input("Do you want to force load {} on the unsupported macOS version? (yes/No): ".format("these kexts" if len(incompatible_kexts) > 1 else "this kext"))
+            option = self.utils.request_input("您想在不支持的macOS版本上强制加载{}吗？ (yes/No): ".format("这些kext" if len(incompatible_kexts) > 1 else "这个kext"))
             
             if option.lower() == "yes":
                 return True
@@ -659,16 +759,22 @@ class KextMaestro:
                 return False
 
     def kext_configuration_menu(self, macos_version):
+        """
+        显示kext配置菜单，允许用户选择和配置kext
+        
+        参数:
+            macos_version: macOS版本号
+        """
         current_category = None
 
         while True:
             contents = []
             contents.append("")
-            contents.append("List of available kexts:")
+            contents.append("可用的kext列表:")
             for index, kext in enumerate(self.kexts, start=1):
                 if kext.category != current_category:
                     current_category = kext.category
-                    category_header = "Category: {}".format(current_category if current_category else "Uncategorized")
+                    category_header = "分类: {}".format(current_category if current_category else "未分类")
                     contents.append(f"\n{category_header}\n" + "=" * len(category_header))
                 checkbox = "[*]" if kext.checked else "[ ]"
                 
@@ -679,20 +785,20 @@ class KextMaestro:
                     line = "\033[90m{}\033[0m".format(line)
                 contents.append(line)
             contents.append("")
-            contents.append("\033[1;93mNote:\033[0m")
-            contents.append("- Lines in gray indicate kexts that are not supported by the current macOS version ({}).".format(macos_version))
-            contents.append("- When a plugin of a kext is selected, the entire kext will be automatically selected.")
-            contents.append("- You can select multiple kexts by entering their indices separated by commas (e.g., '1, 2, 3').")
+            contents.append("\033[1;93m注意:\033[0m")
+            contents.append("- 灰色行表示不支持当前macOS版本的kext ({})。".format(macos_version))
+            contents.append("- 当选择一个kext的插件时，整个kext将被自动选择。")
+            contents.append("- 您可以通过输入用逗号分隔的索引来选择多个kext（例如：'1, 2, 3'）。")
             contents.append("")
-            contents.append("B. Back")
-            contents.append("Q. Quit")
+            contents.append("B. 返回")
+            contents.append("Q. 退出")
             contents.append("")
             content = "\n".join(contents)
 
             self.utils.adjust_window_size(content)
-            self.utils.head("Configure Kernel Extensions", resize=False)
+            self.utils.head("配置内核扩展", resize=False)
             print(content)
-            option = self.utils.request_input("Select your option: ")
+            option = self.utils.request_input("选择您的选项: ")
             if option.lower() == "b":
                 return
             if option.lower() == "q":

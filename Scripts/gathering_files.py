@@ -139,9 +139,9 @@ class gatheringFiles:
         return True
     
     def gather_bootloader_kexts(self, kexts, macos_version):
-        self.utils.head("Gathering Files")
+        self.utils.head("收集文件")
         print("")
-        print("Please wait for download OpenCorePkg, kexts and macserial...")
+        print("请等待下载 OpenCorePkg、kext(内核扩展)和 macserial...")
 
         download_history = self.utils.read_file(self.download_history_file)
         if not isinstance(download_history, list):
@@ -188,7 +188,7 @@ class gatheringFiles:
             
             if product_download_index is None:
                 print("\n")
-                print("Could not find download URL for {}.".format(product_name))
+                print("无法找到 {} 的下载 URL。".format(product_name))
                 continue
 
             product_info = download_database[product_download_index]
@@ -210,18 +210,18 @@ class gatheringFiles:
                 folder_is_valid, _ = self.integrity_checker.verify_folder_integrity(asset_dir, manifest_path)
                 
                 if is_latest_id and folder_is_valid:
-                    print(f"\nLatest version of {product_name} already downloaded.")
+                    print(f"\n{product_name} 的最新版本已下载。")
                     continue
 
             print("")
-            print("Updating" if product_history_index is not None else "Please wait for download", end=" ")
+            print("更新中" if product_history_index is not None else "请等待下载", end=" ")
             print("{}...".format(product_name))
             if product_download_url:
-                print("from {}".format(product_download_url))
+                print("来自 {}".format(product_download_url))
                 print("")
             else:
                 print("")
-                print("Could not find download URL for {}.".format(product_name))
+                print("无法找到 {} 的下载 URL。".format(product_name))
                 print("")
                 self.utils.request_input()
                 shutil.rmtree(self.temporary_dir, ignore_errors=True)
@@ -231,7 +231,7 @@ class gatheringFiles:
             if not self.fetcher.download_and_save_file(product_download_url, zip_path, sha256_hash):
                 folder_is_valid, _ = self.integrity_checker.verify_folder_integrity(asset_dir, manifest_path)
                 if product_history_index is not None and folder_is_valid:
-                    print("Using previously downloaded version of {}.".format(product_name))
+                    print("使用先前下载的 {} 版本。".format(product_name))
                     continue
                 else:
                     raise Exception("Could not download {} at this time. Please try again later.".format(product_name))
@@ -251,15 +251,15 @@ class gatheringFiles:
             if "OpenCore" in product_name:
                 oc_binary_data_zip_path = os.path.join(self.temporary_dir, "OcBinaryData.zip")
                 print("")
-                print("Please wait for download OcBinaryData...")
-                print("from {}".format(self.ocbinarydata_url))
+                print("请等待下载 OcBinaryData...")
+                print("来自 {}".format(self.ocbinarydata_url))
                 print("")
                 self.fetcher.download_and_save_file(self.ocbinarydata_url, oc_binary_data_zip_path)
 
                 if not os.path.exists(oc_binary_data_zip_path):
                     print("")
-                    print("Could not download OcBinaryData at this time.")
-                    print("Please try again later.\n")
+                    print("此时无法下载 OcBinaryData。")
+                    print("请稍后重试。\n")
                     self.utils.request_input()
                     shutil.rmtree(self.temporary_dir, ignore_errors=True)
                     return False
@@ -280,10 +280,10 @@ class gatheringFiles:
             return response["Kernel"]["Patch"]
         except: 
             print("")
-            print("Unable to download {} at this time".format(patches_name))
-            print("from " + patches_url)
+            print("此时无法下载 {}".format(patches_name))
+            print("来自 " + patches_url)
             print("")
-            print("Please try again later or apply them manually.")
+            print("请稍后重试或手动应用它们。")
             print("")
             self.utils.request_input()
             return []
@@ -310,7 +310,7 @@ class gatheringFiles:
         if os_name != "Windows":
             return
 
-        self.utils.head("Gathering Hardware Sniffer")
+        self.utils.head("收集硬件嗅探")
 
         PRODUCT_NAME = "Hardware-Sniffer-CLI.exe"
         REPO_OWNER = "lzhoang2801"
@@ -334,11 +334,11 @@ class gatheringFiles:
 
         if not all([product_id, product_download_url, sha256_hash]):
             print("")
-            print("Could not find release information for {}.".format(PRODUCT_NAME))
-            print("Please try again later.")
+            print("无法找到 {} 的发布信息。".format(PRODUCT_NAME))
+            print("请稍后重试。")
             print("")
             self.utils.request_input()
-            raise Exception("Could not find release information for {}.".format(PRODUCT_NAME))
+            raise Exception("无法找到 {} 的发布信息。".format(PRODUCT_NAME))
 
         download_history = self.utils.read_file(self.download_history_file)
         if not isinstance(download_history, list):
@@ -357,22 +357,22 @@ class gatheringFiles:
 
             if is_latest_id and file_is_valid:
                 print("")
-                print("Latest version of {} already downloaded.".format(PRODUCT_NAME))
+                print("最新版本的 {} 已下载。".format(PRODUCT_NAME))
                 return destination_path
 
         print("")
-        print("Updating" if product_history_index is not None else "Please wait for download", end=" ")
+        print("更新中" if product_history_index is not None else "请等待下载", end=" ")
         print("{}...".format(PRODUCT_NAME))
         print("")
-        print("from {}".format(product_download_url))
+        print("来自 {}".format(product_download_url))
         print("")
         
         if not self.fetcher.download_and_save_file(product_download_url, destination_path, sha256_hash):
             manual_download_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest"
-            print("Go to {} to download {} manually.".format(manual_download_url, PRODUCT_NAME))
+            print("请访问 {} 手动下载 {}\。".format(manual_download_url, PRODUCT_NAME))
             print("")
             self.utils.request_input()
-            raise Exception("Failed to download {}.".format(PRODUCT_NAME))
+            raise Exception("下载 {} 失败。".format(PRODUCT_NAME))
 
         self._update_download_history(download_history, PRODUCT_NAME, product_id, product_download_url, sha256_hash)
         

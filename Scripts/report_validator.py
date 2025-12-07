@@ -222,16 +222,16 @@ class ReportValidator:
         data = None
         
         if not os.path.exists(report_path):
-            self.errors.append("File does not exist: {}".format(report_path))
+            self.errors.append("文件不存在: {}".format(report_path))
             return False, self.errors, self.warnings, None
             
         try:
             data = self.u.read_file(report_path)
         except json.JSONDecodeError as e:
-            self.errors.append("Invalid JSON format: {}".format(str(e)))
+            self.errors.append("JSON格式无效: {}".format(str(e)))
             return False, self.errors, self.warnings, None
         except Exception as e:
-            self.errors.append("Error reading file: {}".format(str(e)))
+            self.errors.append("读取文件时出错: {}".format(str(e)))
             return False, self.errors, self.warnings, None
             
         cleaned_data = self._validate_node(data, self.SCHEMA, "Root")
@@ -244,17 +244,17 @@ class ReportValidator:
         if expected_type:
             if not isinstance(data, expected_type):
                 type_name = expected_type.__name__ if hasattr(expected_type, "__name__") else str(expected_type)
-                self.errors.append(f"{path}: Expected type {type_name}, got {type(data).__name__}")
+                self.errors.append(f"{path}: 期望类型 {type_name}, 但实际类型为 {type(data).__name__}")
                 return None
 
         if isinstance(data, str):
             pattern = rule.get("pattern")
             if pattern is not None:
                 if not re.match(pattern, data):
-                    self.errors.append(f"{path}: Value '{data}' does not match pattern '{pattern}'")
+                    self.errors.append(f"{path}: 值 '{data}' 不匹配模式 '{pattern}'")
                     return None
             elif not re.match(self.PATTERNS["not_empty"], data):
-                 self.errors.append(f"{path}: Value '{data}' does not match pattern '{self.PATTERNS['not_empty']}'")
+                 self.errors.append(f"{path}: 值 '{data}' 不匹配模式 '{self.PATTERNS['not_empty']}'")
                  return None
 
         cleaned_data = data
@@ -274,11 +274,11 @@ class ReportValidator:
                         cleaned_data[key] = cleaned_val
                 else:
                     if schema_keys:
-                        self.warnings.append(f"{path}: Unknown key '{key}'")
+                        self.warnings.append(f"{path}: 未知 key 值 '{key}'")
             
             for key, key_rule in schema_keys.items():
                 if key_rule.get("required", True) and key not in cleaned_data:
-                    self.errors.append(f"{path}: Missing required key '{key}'")
+                    self.errors.append(f"{path}: 缺少必填 key 值 '{key}'")
 
         elif isinstance(data, list):
             item_rule = rule.get("item_rule")
@@ -294,24 +294,24 @@ class ReportValidator:
         return cleaned_data
 
     def show_validation_report(self, report_path, is_valid, errors, warnings):
-        self.u.head("Validation Report")
+        self.u.head("验证报告")
         print("")
-        print("Validation report for: {}".format(report_path))
+        print("验证报告：{}".format(report_path))
         print("")
 
         if is_valid:
-            print("Hardware report is valid!")
+            print("硬件报告有效！")
         else:
-            print("Hardware report is not valid! Please check the errors and warnings below.")
+            print("硬件报告无效！请检查以下错误和警告。")
         
         if errors:
             print("")
-            print("\033[31mErrors ({}):\033[0m".format(len(errors)))
+            print("\033[31m错误 ({}):\033[0m".format(len(errors)))
             for i, error in enumerate(errors, 1):
                 print("    {}. {}".format(i, error))
         
         if warnings:
             print("")
-            print("\033[33mWarnings ({}):\033[0m".format(len(warnings)))
+            print("\033[33m警告 ({}):\033[0m".format(len(warnings)))
             for i, warning in enumerate(warnings, 1):
                 print("    {}. {}".format(i, warning))
