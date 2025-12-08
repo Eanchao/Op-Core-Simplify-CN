@@ -84,7 +84,7 @@ class ACPIGuru:
         self.dsdt_patches = []
 
     def get_unique_name(self,name,target_folder,name_append="-Patched"):
-        # 在Results文件夹中获取新的文件名，以免覆盖原始文件
+        # 在 Results 文件夹中获取一个新的文件名，以避免覆盖原始文件
         name = os.path.basename(name)
         ext  = "" if not "." in name else name.split(".")[-1]
         if ext: name = name[:-len(ext)-1]
@@ -92,7 +92,7 @@ class ACPIGuru:
         check_name = ".".join((name,ext)) if ext else name
         if not os.path.exists(os.path.join(target_folder,check_name)):
             return check_name
-        # 我们需要一个唯一的名称
+        # 我们需要一个唯一的文件名
         num = 1
         while True:
             check_name = "{}-{}".format(name,num)
@@ -102,7 +102,7 @@ class ACPIGuru:
             num += 1 # 增加计数器
 
     def get_unique_device(self, path, base_name, starting_number=0, used_names = []):
-        # 追加十六进制数字，直到找到唯一设备
+        # 追加一个十六进制数字，直到找到唯一的设备
         while True:
             hex_num = hex(starting_number).replace("0x","").upper()
             name = base_name[:-1*len(hex_num)]+hex_num
@@ -118,126 +118,122 @@ class ACPIGuru:
     def read_acpi_tables(self, path):
         if not path:
             return
-        self.utils.head("Loading ACPI Table(s)")
-        print("作者: CorpNewt")
+        self.utils.head("正在加载 ACPI 表")
+        print("作者：CorpNewt")
         print("")
         tables = []
         trouble_dsdt = None
         fixed = False
         temp = None
-        prior_tables = self.acpi.acpi_tables # Retain in case of failure
-        # Clear any existing tables so we load anew
+        prior_tables = self.acpi.acpi_tables # 保留以防失败
+        # 清除任何现有的表，以便重新加载
         self.acpi.acpi_tables = {}
         if os.path.isdir(path):
-            print("正在从 {} 收集有效表...\n".format(os.path.basename(path)))
+            print("正在从 {} 中获取有效表...\n".format(os.path.basename(path)))
             for t in self.sorted_nicely(os.listdir(path)):
                 if not "Patched" in t and self.acpi.table_is_valid(path,t):
                     print(" - {}".format(t))
                     tables.append(t)
             if not tables:
-                # 检查传入的目录中是否有ACPI目录
-                # 这可能表明SysReport已被删除
+                # 如果在传递的目录中存在 ACPI 目录，这可能表示 SysReport 被删除了
                 if os.path.isdir(os.path.join(path,"ACPI")):
-                    # 使用更新后的路径重新运行此函数
+                    # 如果在传递的目录中存在 ACPI 目录，这可能表示 SysReport 被删除了，我们需要重新运行该函数
                     return self.read_acpi_tables(os.path.join(path,"ACPI"))
-                print(" - 未找到有效的 .aml 文件!")
+                print(" - 无可用的 .aml 文件！")
                 print("")
-                #self.u.grab("按 [enter] 返回...")
+                #self.u.grab("按 [enter] 键返回...")
                 self.utils.request_input()
-                # 恢复任何先前的表
+                # Restore any prior tables
                 self.acpi.acpi_tables = prior_tables
                 return
             print("")
-            # 我们至少找到了一个文件 - 让我们专门查找DSDT
-            # 并尝试按原样加载它。如果加载失败，我们将不得不
-            # 使用临时文件夹管理所有内容
+            # 我们至少找到了一个文件 —— 接下来我们专门查找DSDT文件，并尝试按原格式加载它。如果加载失败，我们就不得不通过临时文件夹来管理所有内容。
             dsdt_list = [x for x in tables if self.acpi._table_signature(path,x) == "DSDT"]
             if len(dsdt_list) > 1:
-                print("传入了多个带有DSDT签名的文件:")
+                print("检测到多个带有 DSDT 签名的文件：")
                 for d in self.sorted_nicely(dsdt_list):
                     print(" - {}".format(d))
-                print("\n一次只允许一个。请删除上述文件之一，然后重试。")
+                print("\n仅允许加载一个 DSDT 文件。请删除其中一个并重新尝试。")
                 print("")
-                #self.u.grab("按 [enter] 返回...")
+                #self.u.grab("按 [enter] 键返回...")
                 self.utils.request_input()
-                # 恢复任何先前的表
+                # Restore any prior tables
                 self.acpi.acpi_tables = prior_tables
                 return
-            # 获取DSDT（如果有）
+            # Get the DSDT, if any
             dsdt = dsdt_list[0] if len(dsdt_list) else None
-            if dsdt: # 尝试加载它，看看是否会导致问题
+            if dsdt: # Try to load it and see if it causes problems
                 print("正在反汇编 {} 以验证是否需要预补丁...".format(dsdt))
                 if not self.acpi.load(os.path.join(path,dsdt))[0]:
                     trouble_dsdt = dsdt
                 else:
-                    print("\n反汇编成功!\n")
+                    print("\n反汇编成功！\n")
         elif not "Patched" in path and os.path.isfile(path):
             print("正在加载 {}...".format(os.path.basename(path)))
             if self.acpi.load(path)[0]:
-                print("\n完成。")
-                # 如果加载正常 - 只需返回路径
-                # 到父目录
+                print("\完成。")
+                # 如果加载成功，我们就返回父目录的路径
                 return os.path.dirname(path)
             if not self.acpi._table_signature(path) == "DSDT":
-                # 不是DSDT，我们不应用预补丁
-                print("\n{} 无法反汇编!".format(os.path.basename(path)))
+                # 不是 DSDT，我们不应用预补丁
+                print("\n{} 无法反汇编！".format(os.path.basename(path)))
                 print("")
-                #self.u.grab("按 [enter] 返回...")
+                #self.u.grab("按 [enter] 键返回...")
                 self.utils.request_input()
-                # 恢复任何先前的表
+                # Restore any prior tables
                 self.acpi.acpi_tables = prior_tables
                 return
-            # 加载失败 - 将其设置为有问题的文件
+            # It didn't load - set it as the trouble file
             trouble_dsdt = os.path.basename(path)
-            # 将表放入表列表，并调整
-            # 路径代表父目录
+            # Put the table in the tables list, and adjust
+            # the path to represent the parent dir
             tables.append(os.path.basename(path))
             path = os.path.dirname(path)
         else:
-            print("传入的文件/文件夹不存在!")
+            print("传递的文件/文件夹不存在！")
             print("")
-            #self.u.grab("按 [enter] 返回...")
+            #self.u.grab("按 [enter] 键返回...")
             self.utils.request_input()
             # Restore any prior tables
             self.acpi.acpi_tables = prior_tables
             return
-        # 如果我们到了这里 - 检查是否有有问题的DSDT。
+        # 如果我们到这里 - 检查是否有 trouble_dsdt。
         if trouble_dsdt:
-            # 我们需要将ACPI文件移动到临时文件夹
-            # 然后尝试在那里打补丁DSDT
+            # 我们需要将我们的 ACPI 文件移动到临时文件夹
+            # 然后尝试在那里修补 DSDT
             temp = tempfile.mkdtemp()
             for table in tables:
                 shutil.copy(
                     os.path.join(path,table),
                     temp
                 )
-            # 获取新的有问题文件的引用
+            # 我们需要获取新的 trouble 文件的引用
             trouble_path = os.path.join(temp,trouble_dsdt)
-            # 现在我们尝试打补丁
-            print("正在检查可用的预补丁...")
-            print("正在将 {} 加载到内存中...".format(trouble_dsdt))
+            # 现在我们尝试修补它
+            print("检查可用的预补丁...")
+            print("加载 {} 到内存...".format(trouble_dsdt))
             with open(trouble_path,"rb") as f:
                 d = f.read()
             res = self.acpi.check_output(path)
             target_name = self.get_unique_name(trouble_dsdt,res,name_append="-Patched")
             self.dsdt_patches = []
-            print("正在迭代补丁...\n")
+            print("迭代预补丁...\n")
             for p in self.pre_patches:
                 if not all(x in p for x in ("PrePatch","Comment","Find","Replace")): continue
-                print(" - {}".format(p["PrePatch"]))
+                print(" - {}".format(p["预补丁"]))
                 find = binascii.unhexlify(p["Find"])
                 if d.count(find) == 1:
-                    self.dsdt_patches.append(p) # 保留补丁
+                    self.dsdt_patches.append(p) # Retain the patch
                     repl = binascii.unhexlify(p["Replace"])
                     print(" --> 已找到 - 正在应用...")
-                    d = d.replace(find,repl) # 在内存中替换
+                    d = d.replace(find,repl) # Replace it in memory
                     with open(trouble_path,"wb") as f:
-                        f.write(d) # 写入更新后的文件
-                    # 再次尝试加载
+                        f.write(d) # Write the updated file
+                    # Attempt to load again
                     if self.acpi.load(trouble_path)[0]:
                         fixed = True
-                        # 成功加载 - 让我们写入补丁
-                        print("\n反汇编成功!\n")
+                        # We got it to load - let's write the patches
+                        print("\n已成功反汇编！\n")
                         #self.make_plist(None, None, patches)
                         # Save to the local file
                         #with open(os.path.join(res,target_name),"wb") as f:
@@ -246,53 +242,53 @@ class ACPIGuru:
                         #self.patch_warn()
                         break
             if not fixed:
-                print("\n{} 无法反汇编!".format(trouble_dsdt))
+                print("\n{} 无法反汇编！".format(trouble_dsdt))
                 print("")
-                #self.u.grab("按 [enter] 返回...")
+                #self.u.grab("按 [enter] 键返回...")
                 self.utils.request_input()
                 if temp:
                     shutil.rmtree(temp,ignore_errors=True)
-                # 恢复任何先前的表
+                # 恢复任何之前的表
                 self.acpi.acpi_tables = prior_tables
                 return
-        # 让我们加载剩余的表
+        # 让我们加载其他表
         if len(tables) > 1:
-            print("正在加载 {} 中的有效表...".format(path))
+            print("加载 {} 中的有效表...".format(path))
         loaded_tables,failed = self.acpi.load(temp or path)
         if not loaded_tables or failed:
-            print("\n无法加载 {} 中的表{}\n".format(
+            print("\n在 {} 中加载表失败{}".format(
                 os.path.dirname(path) if os.path.isfile(path) else path,
                 ":" if failed else ""
             ))
             for t in self.sorted_nicely(failed):
                 print(" - {}".format(t))
-            # 恢复任何先前的表
+            # Restore any prior tables
             if not loaded_tables:
                 self.acpi.acpi_tables = prior_tables
         else:
             if len(tables) > 1:
-                print("") # 为了可读性换行
+                print("") # Newline for readability
             print("完成。")
-        # 如果我们必须打补丁DSDT，或者不是所有表都加载了，
-        # 确保我们得到用户的交互才能继续
+        # If we had to patch the DSDT, or if not all tables loaded,
+        # make sure we get interaction from the user to continue
         if trouble_dsdt or not loaded_tables or failed:
             print("")
-            #self.u.grab("按 [enter] 返回...")
-            #self.utils.request_input()
+            #self.u.grab("按 [enter] 键返回...")
+            # self.utils.request_input()
         if temp:
             shutil.rmtree(temp,ignore_errors=True)
         self.dsdt = self.acpi.get_dsdt_or_only()
         return path
 
     def _ensure_dsdt(self, allow_any=False):
-        # 辅助函数，用于检查何时有有效表的条件
+        # Helper to check conditions for when we have valid tables
         return self.dsdt and ((allow_any and self.acpi.acpi_tables) or (not allow_any and self.acpi.get_dsdt_or_only()))
 
     def ensure_dsdt(self, allow_any=False):
         if self._ensure_dsdt(allow_any=allow_any):
-            # 已经有了
+            # Got it already
             return True
-        # 需要提示
+        # Need to prompt
         self.select_acpi_tables()
         self.dsdt = self.acpi.get_dsdt_or_only()
         if self._ensure_dsdt(allow_any=allow_any):
@@ -300,27 +296,27 @@ class ACPIGuru:
         return False
 
     def get_sta_var(self,var="STAS",device=None,dev_hid="ACPI000E",dev_name="AWAC",log_locate=False,table=None):
-        # 辅助函数，用于检查设备，检查（并确认）_STA方法，
-        # 并在_STA作用域中查找特定变量
+        # Helper to check for a device, check for (and qualify) an _STA method,
+        # and look for a specific variable in the _STA scope
         #
-        # 返回包含设备信息的字典 - 只有"valid"参数是
-        # 有保证的。
+        # Returns a dict with device info - only "valid" parameter is
+        # guaranteed.
         has_var = False
         patches = []
         root = None
         if device:
             dev_list = self.acpi.get_device_paths(device,table=table)
             if not len(dev_list):
-                if log_locate: print(" - 无法定位 {}".format(device))
+                if log_locate: print(" - 未找到 {}".format(device))
                 return {"value":False}
         else:
-            if log_locate: print("正在定位 {} ({}) 设备...".format(dev_hid,dev_name))
+            if log_locate: print("正在查找 {} ({}) 设备...".format(dev_hid,dev_name))
             dev_list = self.acpi.get_device_paths_with_hid(dev_hid,table=table)
             if not len(dev_list):
-                if log_locate: print(" - 无法定位任何 {} 设备".format(dev_hid))
+                if log_locate: print(" - 未找到任何 {} 设备".format(dev_hid))
                 return {"valid":False}
         dev = dev_list[0]
-        if log_locate: print(" - 已找到 {}".format(dev[0]))
+        if log_locate: print(" - 找到 {}".format(dev[0]))
         root = dev[0].split(".")[0]
         #print(" --> Verifying _STA...")
         # Check Method first - then Name
@@ -333,66 +329,68 @@ class ACPIGuru:
             sta = self.acpi.get_name_paths(dev[0]+"._STA",table=table)
             xsta = self.acpi.get_name_paths(dev[0]+".XSTA",table=table)
         if xsta and not sta:
-            #print(" --> _STA 已重命名为 XSTA！跳过其他检查...")
-            #print("     请为该设备禁用 _STA 到 XSTA 的重命名，重新启动，然后重试。")
+            #print(" --> _STA already renamed to XSTA!  Skipping other checks...")
+            #print("     Please disable _STA to XSTA renames for this device, reboot, and try again.")
             #print("")
             return {"valid":False,"break":True,"device":dev,"dev_name":dev_name,"dev_hid":dev_hid,"sta_type":sta_type}
         if sta:
             if var:
                 scope = "\n".join(self.acpi.get_scope(sta[0][1],strip_comments=True,table=table))
                 has_var = var in scope
-                #print(" --> {}{} 变量".format("有" if has_var else "没有",var))
+                #print(" --> {} {} variable".format("Has" if has_var else "Does NOT have",var))
         #else:
-            #print(" --> 未找到 _STA 方法/名称")
-        # 让我们找出是否需要为 _STA -> XSTA 生成唯一的补丁
+            #print(" --> No _STA method/name found")
+        # Let's find out of we need a unique patch for _STA -> XSTA
         if sta and not has_var:
-            #print(" --> 正在生成 _STA 到 XSTA 的重命名")
+            #print(" --> Generating _STA to XSTA rename")
             sta_index = self.acpi.find_next_hex(sta[0][1],table=table)[1]
-            #print(" ----> 在索引 {} 处找到".format(sta_index))
+            #print(" ----> Found at index {}".format(sta_index))
             sta_hex  = "5F535441" # _STA
             xsta_hex = "58535441" # XSTA
             padl,padr = self.acpi.get_shortest_unique_pad(sta_hex,sta_index,table=table)
-            patches.append({"Comment":"{} _STA 到 XSTA 重命名".format(dev_name),"Find":padl+sta_hex+padr,"Replace":padl+xsta_hex+padr})
+            patches.append({"Comment":"{} _STA to XSTA Rename".format(dev_name),"Find":padl+sta_hex+padr,"Replace":padl+xsta_hex+padr})
         return {"valid":True,"has_var":has_var,"sta":sta,"patches":patches,"device":dev,"dev_name":dev_name,"dev_hid":dev_hid,"root":root,"sta_type":sta_type}
 
     def get_lpc_name(self,log=False,skip_ec=False,skip_common_names=False):
-        # Intel 设备似乎使用 _ADR, 0x001F0000
-        # AMD 设备似乎使用 _ADR, 0x00140003
-        if log: print("正在定位 LPC(B)/SBRG...")
+        # Intel devices appear to use _ADR, 0x001F0000
+        # AMD devices appear to use _ADR, 0x00140003
+        if log: print("正在查找 LPC(B)/SBRG 设备...")
         for table_name in self.sorted_nicely(list(self.acpi.acpi_tables)):
             table = self.acpi.acpi_tables[table_name]
-            # 如果找到，LPCB 设备将始终是 PNP0C09 设备的父设备
+            # The LPCB device will always be the parent of the PNP0C09 device
+            # if found
             if not skip_ec:
                 ec_list = self.acpi.get_device_paths_with_hid("PNP0C09",table=table)
                 if len(ec_list):
                     lpc_name = ".".join(ec_list[0][0].split(".")[:-1])
-                    if log: print(" - 在 {} 中找到 {}".format(table_name,lpc_name))
+                    if log: print(" - 在 {} 中找到了 {}".format(table_name,lpc_name))
                     return lpc_name
-            # 如果尚未找到，可能尝试使用常见名称
+            # Maybe try common names if we haven't found it yet
             if not skip_common_names:
                 for x in ("LPCB", "LPC0", "LPC", "SBRG", "PX40"):
                     try:
                         lpc_name = self.acpi.get_device_paths(x,table=table)[0][0]
-                        if log: print(" - 在 {} 中找到 {}".format(table_name,lpc_name))
+                        if log: print(" - 在 {} 中找到了 {}".format(table_name,lpc_name))
                         return lpc_name
                     except: pass
-            # 最后按地址检查 - 一些 Intel 表在 0x00140003 处有设备
+            # Finally check by address - some Intel tables have devices at
+            # 0x00140003
             paths = self.acpi.get_path_of_type(obj_type="Name",obj="_ADR",table=table)
             for path in paths:
                 adr = self.get_address_from_line(path[1],table=table)
                 if adr in (0x001F0000, 0x00140003):
-                    # 获取路径减去 ._ADR
+                    # Get the path minus ._ADR
                     lpc_name = path[0][:-5]
-                    # 确保 LPCB 设备没有 _HID
+                    # Make sure the LPCB device does not have an _HID
                     lpc_hid = lpc_name+"._HID"
                     if any(x[0]==lpc_hid for x in table.get("paths",[])):
                         continue
-                    if log: print(" - 在 {} 中找到 {}".format(table_name,lpc_name))
+                    if log: print(" - 在 {} 中找到了 {}".format(table_name,lpc_name))
                     return lpc_name
         if log:
-            print(" - 无法定位 LPC(B)！中止！")
+            print(" - 未找到 LPC(B)/SBRG 设备！ 中止！")
             print("")
-        return None # 未找到
+        return None # Didn't find it
 
     def get_address_from_line(self, line, split_by="_ADR, ", table=None):
         if table is None:
@@ -407,21 +405,21 @@ class ACPIGuru:
         #    return
         #self.u.head("Plugin Type")
         #print("")
-        #print("正在确定CPU命名方案...")
+        #print("Determining CPU name scheme...")
         for table_name in self.sorted_nicely(list(self.acpi.acpi_tables)):
             ssdt_name = "SSDT-PLUG"
             table = self.acpi.acpi_tables[table_name]
             if not table.get("signature") in (b"DSDT",b"SSDT"):
-                continue # 我们不检查数据表格
-            #print(" 正在检查 {}...".format(table_name))
+                continue # We're not checking data tables
+            #print(" Checking {}...".format(table_name))
             try: cpu_name = self.acpi.get_processor_paths(table=table)[0][0]
             except: cpu_name = None
             if cpu_name:
-                #print(" - 已找到处理器: {}".format(cpu_name))
-                #oc = {"Comment":"在第一个Processor对象上设置plugin-type为1","Enabled":True,"Path":ssdt_name+".aml"}
-                #print("正在创建SSDT-PLUG...")
+                #print(" - Found Processor: {}".format(cpu_name))
+                #oc = {"Comment":"Sets plugin-type to 1 on first Processor object","Enabled":True,"Path":ssdt_name+".aml"}
+                #print("Creating SSDT-PLUG...")
                 ssdt = """//
-// 基于https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/SSDT-PLUG.dsl中的示例
+// Based on the sample found at https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/SSDT-PLUG.dsl
 //
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlug", 0x00003000)
 {
@@ -429,7 +427,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlug", 0x00003000)
     Scope ([[CPUName]])
     {
         If (_OSI ("Darwin")) {
-            Method (_DSM, 4, NotSerialized)  // _DSM: 设备特定方法
+            Method (_DSM, 4, NotSerialized)  // _DSM: Device-Specific Method
             {
                 If (LNot (Arg2))
                 {
@@ -449,44 +447,43 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlug", 0x00003000)
 }""".replace("[[CPUName]]",cpu_name)
             else:
                 ssdt_name += "-ALT"
-                #print(" - 未找到Processor对象...")
+                #print(" - No Processor objects found...")
                 procs = self.acpi.get_device_paths_with_hid(hid="ACPI0007",table=table)
                 if not procs:
-                    #print(" - 未找到ACPI0007设备...")
+                    #print(" - No ACPI0007 devices found...")
                     continue
-                #print(" - 已定位 {:,} 个ACPI0007设备{}".format(
+                #print(" - Located {:,} ACPI0007 device{}".format(
                 #    len(procs), "" if len(procs)==1 else "s"
                 #))
                 parent = procs[0][0].split(".")[0]
-                #print(" - 在 {} 获取父节点，正在迭代...".format(parent))
+                #print(" - Got parent at {}, iterating...".format(parent))
                 proc_list = []
                 for proc in procs:
-                    #print(" - 正在检查 {}...".format(proc[0].split(".")[-1]))
+                    #print(" - Checking {}...".format(proc[0].split(".")[-1]))
                     uid = self.acpi.get_path_of_type(obj_type="Name",obj=proc[0]+"._UID",table=table)
                     if not uid:
-                        #print(" --> 未找到! 跳过...")
+                        #print(" --> 未找到！正在跳过...")
                         continue
-                    # 让我们获取实际的_UID值
+                    # Let's get the actual _UID value
                     try:
                         _uid = table["lines"][uid[0][1]].split("_UID, ")[1].split(")")[0]
                         #print(" --> _UID: {}".format(_uid))
                         proc_list.append((proc[0],_uid))
                     except:
                         pass
-                        #print(" --> 未找到! 跳过...")
+                        #print(" --> 未找到！正在跳过...")
                 if not proc_list:
                     continue
-                #print("正在迭代 {:,} 个有效处理器设备{}...".format(len(proc_list),"" if len(proc_list)==1 else "s"))
+                #print("Iterating {:,} valid processor device{}...".format(len(proc_list),"" if len(proc_list)==1 else "s"))
                 ssdt = """//
-// 基于https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/Source/SSDT-PLUG-ALT.dsl中的示例
+// Based on the sample found at https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/Source/SSDT-PLUG-ALT.dsl
 //
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
 {
     External ([[parent]], DeviceObj)
 
     Scope ([[parent]])
-    {
-""".replace("[[parent]]",parent)
+    {""".replace("[[parent]]",parent)
                 # Ensure our name scheme won't conflict
                 schemes = ("C000","CP00","P000","PR00","CX00","PX00")
                 # Walk the processor objects, and add them to the SSDT
@@ -498,22 +495,22 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
                         name_check = s[:-len(adr)]+adr
                         check_path = "{}.{}".format(parent,name_check)
                         if self.acpi.get_path_of_type(obj_type="Device",obj=check_path,table=table):
-                            continue # 已定义 - 跳过
-                        # 如果我们到了这里 - 我们找到了一个未使用的名称
+                            continue # Already defined - skip
+                        # If we got here - we found an unused name
                         name = name_check
                         break
                     if not name:
-                        #print(" - 无法找到可用的命名方案! 中止。")
+                        #print(" - Could not find an available name scheme! Aborting.")
                         #print("")
-                        #self.u.grab("按 [enter] 返回主菜单...")
+                        #self.u.grab("Press [enter] to return to main menu...")
                         return
                     ssdt+="""
         Processor ([[name]], [[uid]], 0x00000510, 0x06)
         {
             // [[proc]]
-            Name (_HID, "ACPI0007" /* 处理器设备 */)  // _HID: 硬件ID
+            Name (_HID, "ACPI0007" /* Processor Device */)  // _HID: Hardware ID
             Name (_UID, [[uid]])
-            Method (_STA, 0, NotSerialized)  // _STA: 状态
+            Method (_STA, 0, NotSerialized)  // _STA: Status
             {
                 If (_OSI ("Darwin"))
                 {
@@ -524,7 +521,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
                     Return (Zero)
                 }
             }""".replace("[[name]]",name).replace("[[uid]]",uid).replace("[[proc]]",proc)
-                    if i == 0: # 获得了第一个，同时添加plugin-type
+                    if i == 0: # Got the first, add plugin-type as well
                         ssdt += """
             Method (_DSM, 4, NotSerialized)
             {
@@ -538,24 +535,24 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
                     One
                 })
             }"""
-                # 关闭SSDT
+                # Close up the SSDT
                     ssdt += """
         }"""
                 ssdt += """
     }
 }"""
-            #    oc = {"Comment":"将现代CPU设备重新定义为传统Processor对象并在第一个对象上设置plugin-type为1","Enabled":True,"Path":ssdt_name+".aml"}
+            #    oc = {"Comment":"Redefines modern CPU Devices as legacy Processor objects and sets plugin-type to 1 on the first","Enabled":True,"Path":ssdt_name+".aml"}
             #self.make_plist(oc, ssdt_name+".aml", ())
             #self.write_ssdt(ssdt_name,ssdt)
             #print("")
-            #print("完成。")
+            #print("Done.")
             #self.patch_warn()
-            #self.u.grab("按 [enter] 返回...")
+            #self.u.grab("Press [enter] to return...")
             #return
-        # 如果我们到了这里 - 我们到达了末尾
-        #print("未找到有效的处理器设备!")
+        # If we got here - we reached the end
+        #print("No valid processor devices found!")
         #print("")
-        #self.u.grab("按 [enter] 返回...")
+        #self.u.grab("Press [enter] to return...")
         #return
 
             return {
@@ -569,7 +566,8 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
             }
 
     def list_irqs(self):
-        # 遍历DSDT，跟踪当前设备并保存找到的IRQNoFlags
+        # Walks the DSDT keeping track of the current device and
+        # saving the IRQNoFlags if found
         devices = {}
         current_device = None
         current_hid = None
@@ -642,13 +640,13 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
         return d
 
     def get_hex_from_irqs(self, irq, rem_irq = None):
-        # 我们需要搜索几种不同的类型：
+        # We need to search for a few different types:
         #
-        # 22 XX XX 22 XX XX 22 XX XX（不同行上的多个条目）
-        # 22 XX XX（同一括号内的多个总和 - {0,8,11}）
-        # 22 XX XX（单个IRQNoFlags条目）
+        # 22 XX XX 22 XX XX 22 XX XX (multiples on different lines)
+        # 22 XX XX (summed multiples in the same bracket - {0,8,11})
+        # 22 XX XX (single IRQNoFlags entry)
         # 
-        # 可以以79 [00]（方法结束）、86 09（方法中间）或47 01（未知）结尾
+        # Can end with 79 [00] (end of method), 86 09 (middle of method) or 47 01 (unknown)
         lines = []
         remd  = []
         for a in irq.split("-"):
@@ -691,13 +689,13 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
         return int(b,2)
 
     def same_line_irq(self, irq):
-        # 我们将IRQ值相加并返回整数
+        # We sum the IRQ values and return the int
         total = 0
         for i in irq.split(","):
             if i == "#":
-                continue # 空值
+                continue # Null value
             try: i=int(i)
-            except: continue # 不是整数
+            except: continue # Not an int
             if i > 15 or i < 0:
                 continue # Out of range
             total = total | self.convert_irq_to_int(i)
@@ -730,21 +728,21 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
                     continue
                 if not primed:
                     continue
-                elif ")" in line: # 到达作用域末尾
+                elif ")" in line: # Reached the end of the scope
                     break
-                # 我们已准备好，且不在末尾 - 让我们尝试获取基址和长度
+                # We're primed, and not at the end - let's try to get the base and length
                 try:
                     val = line.strip().split(",")[0].replace("Zero","0x0").replace("One","0x1")
                     check = int(val,16)
                 except:
                     break
-                # 按顺序设置它们
+                # Set them in order
                 if mem_base is None:
                     mem_base = val
                 else:
                     mem_length = val
-                    break # 获取两个值后离开
-            # 检查是否找到了值
+                    break # Leave after we get both values
+            # Check if we found the values
             got_mem = mem_base and mem_length
             if not got_mem:
                 mem_base = "0xFED00000"
@@ -752,7 +750,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
             crs  = "5F435253"
             xcrs = "58435253"
             padl,padr = self.acpi.get_shortest_unique_pad(crs, crs_index)
-            patches.append({"Comment":"{} _CRS 重命名为 XCRS".format(name.split(".")[-1].lstrip("\\")),"Find":padl+crs+padr,"Replace":padl+xcrs+padr})
+            patches.append({"Comment":"{} _CRS to XCRS Rename".format(name.split(".")[-1].lstrip("\\")),"Find":padl+crs+padr,"Replace":padl+xcrs+padr})
         else:
             ec_list = self.acpi.get_device_paths_with_hid("PNP0C09")
             name = None
@@ -769,8 +767,8 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
             
         devs = self.list_irqs()
         target_irqs = self.get_irq_choice(devs)
-        if target_irqs is None: return # 退出，返回主菜单
-        # 让我们逐步应用补丁
+        if target_irqs is None: return # Bailed, going to the main menu
+        # Let's apply patches as we go
         saved_dsdt = self.dsdt.get("raw")
         unique_patches  = {}
         generic_patches = []
@@ -781,15 +779,15 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
             i = [x for x in irq_patches if x["changed"]]
             for a,t in enumerate(i):
                 if not t["changed"]:
-                    # 没有补丁 - 跳过
+                    # Nothing patched - skip
                     continue
-                # 尝试我们的结尾 - 7900, 8609 和 4701 - 还允许最多8个字符的填充（感谢MSI）
+                # Try our endings here - 7900, 8609, and 4701 - also allow for up to 8 chars of pad (thanks MSI)
                 matches = re.findall("("+t["find"]+"(.{0,8})(7900|4701|8609))",self.acpi.get_hex_starting_at(t["index"])[0])
                 if not len(matches):
                     continue
                 if len(matches) > 1:
-                    # 找到太多匹配项！
-                    # 将它们全部添加为查找/替换条目
+                    # Found too many matches!
+                    # Add them all as find/replace entries
                     for x in matches:
                         generic_patches.append({
                             "remd":",".join([str(y) for y in set(t["remd"])]),
@@ -811,41 +809,41 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "CpuPlugA", 0x00003000)
                     "find":t_patch,
                     "repl":r_patch
                 })
-        # 遍历唯一补丁（如果有）
+        # Walk the unique patches if any
         if len(unique_patches):
             for x in unique_patches:
                 for i,p in enumerate(unique_patches[x]):
-                    patch_name = "{} IRQ {} 补丁".format(x, p["remd"])
+                    patch_name = "{} IRQ {} Patch".format(x, p["remd"])
                     if len(unique_patches[x]) > 1:
-                        patch_name += " - {}/{}个".format(i+1, len(unique_patches[x]))
+                        patch_name += " - {} of {}".format(i+1, len(unique_patches[x]))
                     patches.append({
                         "Comment": patch_name,
                         "Find": p["find"],
                         "Replace": p["repl"]
                     })
-        # 遍历通用补丁（如果有）
+        # Walk the generic patches if any
         if len(generic_patches):
-            generic_set = [] # 确保我们不重复查找值
+            generic_set = [] # Make sure we don't repeat find values
             for x in generic_patches:
                 if x in generic_set:
                     continue
                 generic_set.append(x)
 
             for i,x in enumerate(generic_set):
-                patch_name = "通用 IRQ 补丁 {}/{}个 - {} - {}".format(i+1,len(generic_set),x["remd"],x["orig"])
+                patch_name = "Generic IRQ Patch {} of {} - {} - {}".format(i+1,len(generic_set),x["remd"],x["orig"])
                 patches.append({
                     "Comment": patch_name,
                     "Find": x["find"],
                     "Replace": x["repl"],
                     "Enabled": False
                 })
-        # 恢复内存中的原始DSDT
+        # Restore the original DSDT in memory
         self.dsdt["raw"] = saved_dsdt
 
         ssdt_name = "SSDT-HPET"
 
         if hpet_fake:
-            ssdt_content = """// 虚拟HPET设备
+            ssdt_content = """// Fake HPET device
 //
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "HPET", 0x00000000)
 {
@@ -857,7 +855,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "HPET", 0x00000000)
         {
             Name (_HID, EisaId ("PNP0103") /* HPET System Timer */)  // _HID: Hardware ID
             Name (_CID, EisaId ("PNP0C01") /* System Board */)  // _CID: Compatible ID
-            Method (_STA, 0, NotSerialized)  // _STA: 状态
+            Method (_STA, 0, NotSerialized)  // _STA: Status
             {
                 If (_OSI ("Darwin"))
                 {
@@ -882,8 +880,8 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "HPET", 0x00000000)
 }""".replace("[[name]]",name)
         else:
             ssdt_content = """//
-// 来自Goldfish64的补充HPET _CRS
-// 需要将HPET的_CRS重命名为XCRS
+// Supplementary HPET _CRS from Goldfish64
+// Requires the HPET's _CRS to XCRS rename
 //
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "HPET", 0x00000000)
 {
@@ -904,12 +902,13 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "HPET", 0x00000000)
         })
         Method (_CRS, 0, Serialized)  // _CRS: Current Resource Settings
         {
-            // 如果启动macOS或XCRS方法因某些原因不再存在，则返回我们的缓冲区
+            // Return our buffer if booting macOS or the XCRS method
+            // no longer exists for some reason
             If (LOr (_OSI ("Darwin"), LNot(CondRefOf ([[name]].XCRS))))
             {
                 Return (BUFX)
             }
-            // 不是macOS且XCRS存在 - 返回其结果
+            // Not macOS and XCRS exists - return its result
             Return ([[name]].XCRS[[method]])
         }""" \
     .replace("[[name]]",name) \
@@ -931,14 +930,15 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "HPET", 0x00000000)
                 ssdt_content = "\n".join(ssdt_parts)
                 # Add our method
                 ssdt_content += """
-        Method (_STA, 0, NotSerialized)  // _STA: 状态
+        Method (_STA, 0, NotSerialized)  // _STA: Status
         {
-            // 如果启动macOS或XSTA方法因某些原因不再存在，则返回0x0F
+            // Return 0x0F if booting macOS or the XSTA method
+            // no longer exists for some reason
             If (LOr (_OSI ("Darwin"), LNot (CondRefOf ([[name]].XSTA))))
             {
                 Return (0x0F)
             }
-            // 不是macOS且XSTA存在 - 返回其结果
+            // Not macOS and XSTA exists - return its result
             Return ([[name]].XSTA[[called]])
         }""".replace("[[name]]",name).replace("[[called]]"," ()" if sta["sta_type"]=="MethodObj" else "")
             ssdt_content += """
@@ -967,85 +967,85 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "HPET", 0x00000000)
         lpc_name = None
         awac_dict = self.get_sta_var(var="STAS",dev_hid="ACPI000E",dev_name="AWAC")
         rtc_dict = self.get_sta_var(var="STAS",dev_hid="PNP0B00",dev_name="RTC")
-        # 到目前为止 - 我们应该已经有了AWAC和RTC设备的所有信息
-        # 让我们看看是否需要虚拟RTC设备 - 然后构建SSDT.
+        # At this point - we should have any info about our AWAC and RTC devices
+        # we need.  Let's see if we need an RTC fake - then build the SSDT.
         if not rtc_dict.get("valid"):
-            #print(" - 需要虚拟RTC设备!")
+            #print(" - Fake needed!")
             lpc_name = self.get_lpc_name()
             if lpc_name is None:
-                #self.u.grab("按[回车]返回主菜单...")
+                #self.u.grab("Press [enter] to return to main menu...")
                 return
         else:
-            # 让我们检查RTC设备是否有_CRS变量 - 如果有，让我们查找任何跳过的范围
-            #print(" --> 正在检查_CRS...")
+            # Let's check if our RTC device has a _CRS variable - and if so, let's look for any skipped ranges
+            #print(" --> Checking for _CRS...")
             rtc_crs = self.acpi.get_method_paths(rtc_dict["device"][0]+"._CRS") or self.acpi.get_name_paths(rtc_dict["device"][0]+"._CRS")
             if rtc_crs:
                 #print(" ----> {}".format(rtc_crs[0][0]))
                 rtc_crs_type = "MethodObj" if rtc_crs[0][-1] == "Method" else "BuffObj"
-                # 只有当它是buffobj时才检查范围
+                # Only check for the range if it's a buffobj
                 if rtc_crs_type.lower() == "buffobj":
-                    #print(" --> _CRS是一个缓冲区 - 正在检查RTC范围...")
+                    #print(" --> _CRS is a Buffer - checking RTC range...")
                     last_adr = last_len = last_ind = None
                     crs_scope = self.acpi.get_scope(rtc_crs[0][1])
-                    # 让我们尝试清理scope - 它通常是一团糟
+                    # Let's try and clean up the scope - it's often a jumbled mess
                     pad_len = len(crs_scope[0])-len(crs_scope[0].lstrip())
                     pad = crs_scope[0][:pad_len]
                     fixed_scope = []
                     for line in crs_scope:
-                        if line.startswith(pad): # 得到完整行 - 去掉缩进并保存
+                        if line.startswith(pad): # Got a full line - strip the pad, and save it
                             fixed_scope.append(line[pad_len:])
-                        else: # 可能是前一行的一部分
+                        else: # Likely a part of the prior line
                             fixed_scope[-1] = fixed_scope[-1]+line
                     for i,line in enumerate(fixed_scope):
                         if "Name (_CRS, " in line:
-                            # 将_CRS重命名为BUFX供以后使用 - 并去掉任何注释以避免混淆
+                            # Rename _CRS to BUFX for later - and strip any comments to avoid confusion
                             line = line.replace("Name (_CRS, ","Name (BUFX, ").split("  //")[0]
                         if "IO (Decode16," in line:
-                            # 我们找到了开始 - 获取下一行和第4行
+                            # We have our start - get the the next line, and 4th line
                             try:
                                 curr_adr = int(fixed_scope[i+1].strip().split(",")[0],16)
                                 curr_len = int(fixed_scope[i+4].strip().split(",")[0],16)
-                                curr_ind = i+4 # 保存我们可能需要填充的值
-                            except: # 坏值? 退出...
-                                #print(" ----> 无法收集值 - 无法验证RTC范围.")
+                                curr_ind = i+4 # Save the value we may pad
+                            except: # Bad values? Bail...
+                                #print(" ----> Failed to gather values - could not verify RTC range.")
                                 rtc_range_needed = False
                                 break
-                            if last_adr is not None: # 比较我们的范围值
+                            if last_adr is not None: # Compare our range values
                                 adjust = curr_adr - (last_adr + last_len)
-                                if adjust: # 我们需要将前一个长度增加adjust值
+                                if adjust: # We need to increment the previous length by our adjust value
                                     rtc_range_needed = True
-                                    #print(" ----> 正在调整IO范围 {} 长度到 {}".format(self.hexy(last_adr,pad_to=4),self.hexy(last_len+adjust,pad_to=2)))
+                                    #print(" ----> Adjusting IO range {} length to {}".format(self.hexy(last_adr,pad_to=4),self.hexy(last_len+adjust,pad_to=2)))
                                     try:
                                         hex_find,hex_repl = self.hexy(last_len,pad_to=2),self.hexy(last_len+adjust,pad_to=2)
                                         crs_lines[last_ind] = crs_lines[last_ind].replace(hex_find,hex_repl)
                                     except:
-                                        #print(" ----> 无法调整值 - 无法验证RTC范围.")
+                                        #print(" ----> Failed to adjust values - could not verify RTC range.")
                                         rtc_range_needed = False
                                         break
-                            # 保存我们的最后值
+                            # Save our last values
                             last_adr,last_len,last_ind = curr_adr,curr_len,curr_ind
                         crs_lines.append(line)
-                if rtc_range_needed: # 我们需要生成_CRS -> XCRS的重命名
-                    #print(" --> 正在生成_CRS到XCRS的重命名...")
+                if rtc_range_needed: # We need to generate a rename for _CRS -> XCRS
+                    #print(" --> Generating _CRS to XCRS rename...")
                     crs_index = self.acpi.find_next_hex(rtc_crs[0][1])[1]
-                    #print(" ----> 在索引 {} 处找到".format(crs_index))
+                    #print(" ----> Found at index {}".format(crs_index))
                     crs_hex  = "5F435253" # _CRS
                     xcrs_hex = "58435253" # XCRS
                     padl,padr = self.acpi.get_shortest_unique_pad(crs_hex, crs_index)
                     patches = rtc_dict.get("patches",[])
-                    patches.append({"Comment":"{} _CRS到XCRS的重命名".format(rtc_dict["dev_name"]),"Find":padl+crs_hex+padr,"Replace":padl+xcrs_hex+padr})
+                    patches.append({"Comment":"{} _CRS to XCRS Rename".format(rtc_dict["dev_name"]),"Find":padl+crs_hex+padr,"Replace":padl+xcrs_hex+padr})
                     rtc_dict["patches"] = patches
                     rtc_dict["crs"] = True
             #else:
-            #    print(" ----> 未找到")
-        # 让我们看看是否需要SSDT
-        # 如果AWAC不存在则不需要；RTC存在，没有STAS变量，没有_STA方法，也不需要范围修复
+            #    print(" ----> Not found")
+        # Let's see if we even need an SSDT
+        # Not required if AWAC is not present; RTC is present, doesn't have an STAS var, and doesn't have an _STA method, and no range fixes are needed
         if not awac_dict.get("valid") and rtc_dict.get("valid") and not rtc_dict.get("has_var") and not rtc_dict.get("sta") and not rtc_range_needed:
             #print("")
-            #print("已找到并验证有效的PNP0B00（RTC）设备，未找到ACPI000E（AWAC）设备。")
-            #print("不需要补丁或SSDT。")
+            #print("Valid PNP0B00 (RTC) device located and qualified, and no ACPI000E (AWAC) devices found.")
+            #print("No patching or SSDT needed.")
             #print("")
-            #self.u.grab("按[回车]返回主菜单...")
+            #self.u.grab("Press [enter] to return to main menu...")
             return
         suffix  = []
         for x in (awac_dict,rtc_dict):
@@ -1058,20 +1058,20 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "HPET", 0x00000000)
             if val: suffix.append(val)
         #if suffix:
         #    comment += " - Requires {} Rename".format(", ".join(suffix))
-        # 此时 - 我们需要执行以下操作:
-        # 1. 如有需要，更改 STAS
-        # 2. 使用 _OSI 设置 _STA，并在需要时调用 XSTA
-        # 3. 如有需要，模拟 RTC
+        # At this point - we need to do the following:
+        # 1. Change STAS if needed
+        # 2. Setup _STA with _OSI and call XSTA if needed
+        # 3. Fake RTC if needed
         #oc = {"Comment":comment,"Enabled":True,"Path":"SSDT-RTCAWAC.aml"}
         #self.make_plist(oc, "SSDT-RTCAWAC.aml", awac_dict.get("patches",[])+rtc_dict.get("patches",[]), replace=True)
         #print("Creating SSDT-RTCAWAC...")
         ssdt_name = "SSDT-RTCAWAC"
         ssdt = """//
-// 原始来源来自 Acidanthera:
+// Original sources from Acidanthera:
 //  - https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/SSDT-AWAC.dsl
 //  - https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/SSDT-RTC0.dsl
 //
-// 使用 ZPSS 名称来表示此文件的创建位置，用于故障排除。
+// Uses the ZPSS name to denote where this was created for troubleshooting purposes.
 //
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
 {
@@ -1100,7 +1100,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
     Scope ([[DevPath]])
     {
         Name (ZSTA, [[Original]])
-        Method (_STA, 0, NotSerialized)  // _STA: 状态
+        Method (_STA, 0, NotSerialized)  // _STA: Status
         {
             If (_OSI ("Darwin"))
             {
@@ -1120,7 +1120,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
                 ssdt += """    External ([[DevPath]], DeviceObj)
     Scope ([[DevPath]])
     {
-        Method (_STA, 0, NotSerialized)  // _STA: 状态
+        Method (_STA, 0, NotSerialized)  // _STA: Status
         {
             If (_OSI ("Darwin"))
             {
@@ -1139,19 +1139,20 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
     External ([[DevPath]].XCRS, [[type]])
     Scope ([[DevPath]])
     {
-        // 从 DSDT 中提取并调整并重命名的 _CRS 缓冲区，已修正范围
+        // Adjusted and renamed _CRS buffer ripped from DSDT with corrected range
 [[NewCRS]]
-        // 调整后的 _CRS 和重命名缓冲区的结束
+        // End of adjusted _CRS and renamed buffer
 
-        // 创建一个新的 _CRS 方法，返回重命名后的 XCRS 的结果
-        Method (_CRS, 0, Serialized)  // _CRS: 当前资源设置
+        // Create a new _CRS method that returns the result of the renamed XCRS
+        Method (_CRS, 0, Serialized)  // _CRS: Current Resource Settings
         {
             If (LOr (_OSI ("Darwin"), LNot (CondRefOf ([[DevPath]].XCRS))))
             {
-                // 如果启动macOS或XCRS方法因某些原因不再存在，则返回我们的缓冲区
+                // Return our buffer if booting macOS or the XCRS method
+                // no longer exists for some reason
                 Return (BUFX)
             }
-            // 不是macOS且XCRS存在 - 返回其结果
+            // Not macOS and XCRS exists - return its result
             Return ([[DevPath]].XCRS[[method]])
         }
     }
@@ -1159,7 +1160,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
     .replace("[[type]]",rtc_crs_type) \
     .replace("[[method]]"," ()" if rtc_crs_type == "Method" else "") \
     .replace("[[NewCRS]]","\n".join([(" "*8)+x for x in crs_lines]))
-        # 检查我们是否根本没有RTC设备
+        # Check if we do not have an RTC device at all
         if not rtc_dict.get("valid") and lpc_name:
             ssdt += """    External ([[LPCName]], DeviceObj)    // (from opcode)
     Scope ([[LPCName]])
@@ -1178,7 +1179,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
                 IRQNoFlags ()
                     {8}
             })
-            Method (_STA, 0, NotSerialized)  // _STA: 状态
+            Method (_STA, 0, NotSerialized)  // _STA: Status
             {
                 If (_OSI ("Darwin"))
                 {
@@ -1195,15 +1196,15 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
         ssdt += "}"
         #self.write_ssdt("SSDT-RTCAWAC",ssdt)
         #print("")
-        #print("完成.")
-        # 检查我们是否生成了一个故障保护 - 并鼓励手动检查
-        # 需要只有RTC设备（没有AWAC）且有_STA但没有STAS变量
+        #print("Done.")
+        # See if we just generated a failsafe - and encourage manual checking
+        # Would require only an RTC device (no AWAC) that has an _STA with no STAS var
         #if rtc_dict.get("valid") and not awac_dict.get("valid") and rtc_dict.get("sta") and not rtc_dict.get("has_var") and not rtc_range_needed:
-        #    print("\n   {}!! 注意 !!{} 仅检测到RTC（没有AWAC），带有_STA方法但没有STAS".format(self.yel,self.rst))
-        #    print("               变量! 已创建补丁和SSDT-RTCAWAC作为故障保护，")
-        #    print("               但请通过检查RTC._STA条件来验证您是否需要它们!")
+        #    print("\n   {}!! NOTE !!{}  Only RTC (no AWAC) detected with an _STA method and no STAS".format(self.yel,self.rst))
+        #    print("               variable! Patch(es) and SSDT-RTCAWAC created as a failsafe,")
+        #    print("               but verify you need them by checking the RTC._STA conditions!")
         #self.patch_warn()
-        #self.u.grab("按[回车]返回...")
+        #self.u.grab("Press [enter] to return...")
         
         if self.write_ssdt(ssdt_name, ssdt):
             return {
@@ -1223,18 +1224,19 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
         
         #if not self.ensure_dsdt():
         #    return
-        #self.u.head("虚拟EC")
+        #self.u.head("Fake EC")
         #print("")
-        #print("正在定位PNP0C09 (EC)设备...")
-        # 设置一个辅助方法来确定
-        # 根据类型和返回值是否需要修补_STA。
+        #print("Locating PNP0C09 (EC) devices...")
+        # Set up a helper method to determine
+        # if an _STA needs patching based on
+        # the type and returns.
         def sta_needs_patching(sta):
             if not isinstance(sta,dict) or not sta.get("sta"):
                 return False
-            # 检查我们是否有IntObj或MethodObj
-            # _STA，如果可能的话，抓取值。
+            # Check if we have an IntObj or MethodObj
+            # _STA, and scrape for values if possible.
             if sta.get("sta_type") == "IntObj":
-                # 我们得到了一个整数 - 看看它是否被强制启用
+                # We got an int - see if it's force-enabled
                 try:
                     sta_scope = table["lines"][sta["sta"][0][1]]
                     if not "Name (_STA, 0x0F)" in sta_scope:
@@ -1243,18 +1245,18 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
                     #print(e)
                     return True
             elif sta.get("sta_type") == "MethodObj":
-                # 我们得到了一个方法 - 如果我们有多个
-                # "Return (", 或不是单个 "Return (0x0F)",
-                # 那么我们需要修补它并替换
+                # We got a method - if we have more than one
+                # "Return (", or not a single "Return (0x0F)",
+                # then we need to patch this out and replace
                 try:
                     sta_scope = "\n".join(self.acpi.get_scope(sta["sta"][0][1],strip_comments=True,table=table))
                     if sta_scope.count("Return (") > 1 or not "Return (0x0F)" in sta_scope:
-                        # 不止一个返回，或者我们的返回不是强制启用的
+                        # More than one return, or our return isn't force-enabled
                         return True
                 except Exception as e:
                     return True
-            # 如果我们到了这里 - 它不是一个可识别的类型，或者
-            # 它已经完全合格，不需要修补
+            # If we got here - it's not a recognized type, or
+            # it was fullly qualified and doesn't need patching
             return False
         rename = False
         named_ec = False
@@ -1278,14 +1280,14 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
                     if device.split(".")[-1] == "EC":
                         named_ec = True
                         if not laptop:
-                            # 只有当我们试图替换它时才重命名
-                            #print(" ----> PNP0C09 (EC) 名为 EC。正在重命名")
+                            # Only rename if we're trying to replace it
+                            #print(" ----> PNP0C09 (EC) called EC. Renaming")
                             device = ".".join(device.split(".")[:-1]+["EC0"])
                             rename = True
                     scope = "\n".join(self.acpi.get_scope(x[1],strip_comments=True,table=table))
-                    # 我们需要检查 _HID, _CRS 和 _GPE
+                    # We need to check for _HID, _CRS, and _GPE
                     if all(y in scope for y in ["_HID","_CRS","_GPE"]):
-                        #print(" ----> 有效的 PNP0C09 (EC) 设备")
+                        #print(" ----> Valid PNP0C09 (EC) Device")
                         ec_located = True
                         sta = self.get_sta_var(
                             var=None,
@@ -1297,48 +1299,49 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RTCAWAC", 0x00000000)
                         )
                         if not laptop:
                             ec_to_patch.append(device)
-                            # 只有在不是为笔记本电脑构建时才无条件覆盖 _STA 方法
+                            # Only unconditionally override _STA methods
+                            # if not building for a laptop
                             if sta.get("patches"):
                                 patches.extend(sta.get("patches",[]))
                                 ec_sta[device] = sta
                         elif sta.get("patches"):
                             if sta_needs_patching(sta):
-                                # 保留信息，因为我们需要覆盖它
+                                # Retain the info as we need to override it
                                 ec_to_enable.append(device)
                                 ec_enable_sta[device] = sta
-                                # 默认禁用补丁并添加到列表中
+                                # Disable the patches by default and add to the list
                                 for patch in sta.get("patches",[]):
                                     patch["Enabled"] = False
                                     patch["Disabled"] = True
                                     patches.append(patch)
+                            #else:
+                            #    print(" --> _STA properly enabled - skipping rename")
                     #else:
-                    #    print(" --> _STA 已正确启用 - 跳过重命名")
-            #else:
-            #    print(" ----> 不是有效的 PNP0C09 (EC) 设备")
+                    #    print(" ----> NOT Valid PNP0C09 (EC) Device")
         #if not ec_located:
-            #print(" - 未找到有效的 PNP0C09 (EC) 设备 - 只需要虚拟 EC 设备")
+            #print(" - No valid PNP0C09 (EC) devices found - only needs a Fake EC device")
         if laptop and named_ec and not patches:
-            #print(" ----> 已定位到命名为 EC 的设备 - 不需要虚拟设备。")
+            #print(" ----> Named EC device located - no fake needed.")
             #print("")
-            #self.u.grab("按[回车]返回主菜单...")
+            #self.u.grab("Press [enter] to return to main menu...")
             return
         if lpc_name is None:
             lpc_name = self.get_lpc_name(skip_ec=True,skip_common_names=True)
         if lpc_name is None:
             #self.u.grab("Press [enter] to return to main menu...")
             return
-        #comment = "虚拟嵌入式控制器"
+        #comment = "Faked Embedded Controller"
         if rename == True:
             patches.insert(0,{
-                "Comment":"EC 到 EC0{}".format("" if not ec_sta else " - 必须在任何 EC _STA 到 XSTA 重命名之前！"),
+                "Comment":"EC to EC0{}".format("" if not ec_sta else " - must come before any EC _STA to XSTA renames!"),
                 "Find":"45435f5f",
                 "Replace":"4543305f"
             })
-        #    comment += " - 需要 EC 到 EC0 {}".format(
-        #        "和 EC _STA 到 XSTA 重命名" if ec_sta else "重命名"
+        #    comment += " - Needs EC to EC0 {}".format(
+        #        "and EC _STA to XSTA renames" if ec_sta else "rename"
         #    )
         #elif ec_sta:
-        #    comment += " - 需要 EC _STA 到 XSTA 重命名"
+        #    comment += " - Needs EC _STA to XSTA renames"
         #oc = {"Comment":comment,"Enabled":True,"Path":"SSDT-EC.aml"}
         #self.make_plist(oc, "SSDT-EC.aml", patches, replace=True)
         #print("正在创建 SSDT-EC...")
@@ -1351,13 +1354,13 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "EC", 0x00001000)
             ssdt += "    External ({}, DeviceObj)\n".format(x)
             if x in ec_sta:
                 ssdt += "    External ({}.XSTA, {})\n".format(x,ec_sta[x].get("sta_type","MethodObj"))
-        # 遍历需要启用的EC设备
+        # Walk the ECs to enable
         for x in ec_to_enable:
             ssdt += "    External ({}, DeviceObj)\n".format(x)
             if x in ec_enable_sta:
                 # Add the _STA and XSTA refs as the patch may not be enabled
                 ssdt += "    External ({0}._STA, {1})\n    External ({0}.XSTA, {1})\n".format(x,ec_enable_sta[x].get("sta_type","MethodObj"))
-        # 再次遍历并添加_STA方法
+        # Walk them again and add the _STAs
         for x in ec_to_patch:
             ssdt += """
     Scope ([[ECName]])
@@ -1376,7 +1379,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "EC", 0x00001000)
     }
 """.replace("[[LPCName]]",lpc_name).replace("[[ECName]]",x) \
     .replace("[[XSTA]]","{}.XSTA{}".format(x," ()" if ec_sta[x].get("sta_type","MethodObj")=="MethodObj" else "") if x in ec_sta else "0x0F")
-        # 再次遍历 - 并根据需要强制启用
+        # Walk them yet again - and force enable as needed
         for x in ec_to_enable:
             ssdt += """
     If (LAnd (CondRefOf ([[ECName]].XSTA), LNot (CondRefOf ([[ECName]]._STA))))
@@ -1398,7 +1401,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "EC", 0x00001000)
     }
 """.replace("[[LPCName]]",lpc_name).replace("[[ECName]]",x) \
     .replace("[[XSTA]]","{}.XSTA{}".format(x," ()" if ec_enable_sta[x].get("sta_type","MethodObj")=="MethodObj" else "") if x in ec_enable_sta else "Zero")
-        # 创建虚拟EC
+        # Create the faked EC
         if not laptop or not named_ec:
             ssdt += """
     Scope ([[LPCName]])
@@ -1419,13 +1422,14 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "EC", 0x00001000)
             }
         }
     }""".replace("[[LPCName]]",lpc_name)
-        # 关闭SSDT作用域
-        ssdt += """\n}"""
+        # Close the SSDT scope
+        ssdt += """
+}"""
         #self.write_ssdt("SSDT-EC",ssdt)
         #print("")
-        #print("完成.")
+        #print("完成。")
         #self.patch_warn()
-        #self.u.grab("按[回车]返回...")
+        #self.u.grab("Press [enter] to return...")
 
         return {
             "Add": [
@@ -1491,10 +1495,9 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "EC", 0x00001000)
             for acpi_patch in acpi_patches
         ]
 
-        return sorted(acpi_patches, key=lambda x: x["Comment"])  # 按注释排序补丁
+        return sorted(acpi_patches, key=lambda x: x["Comment"])
 
     def add_intel_management_engine(self):
-        # 添加英特尔管理引擎设备
         ssdt_name = "SSDT-IMEI"
         ssdt_content = """
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "IMEI", 0x00000000)
@@ -1505,8 +1508,8 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "IMEI", 0x00000000)
     {
         Device (IMEI)
         {
-            Name (_ADR, 0x00160000)  // _ADR: 地址
-            Method (_STA, 0, NotSerialized)  // _STA: 状态
+            Name (_ADR, 0x00160000)  // _ADR: Address
+            Method (_STA, 0, NotSerialized)  // _STA: Status
             {
                 If (_OSI ("Darwin"))
                 {
@@ -1523,7 +1526,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "IMEI", 0x00000000)
 
         imei_device = self.acpi.get_device_paths_with_hid("0x00160000", self.dsdt)
 
-        if not imei_device:  # 如果没有找到IMEI设备，则创建虚拟设备
+        if not imei_device:
             return {
                 "Add": [
                     {
@@ -1535,7 +1538,6 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "IMEI", 0x00000000)
             }
 
     def add_memory_controller_device(self):
-        # 添加内存控制器设备
         if not self.lpc_bus_device:
             return
         
@@ -1584,18 +1586,13 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "MCHC", 0)
         }
 
     def add_system_management_bus_device(self):
-        # 添加系统管理总线设备
         if not self.lpc_bus_device:
             return
         
         try:
-            # 根据CPU代数选择合适的HID
-            smbus_device_name = self.acpi.get_device_paths_with_hid(
-                "0x001F0003" if self.hardware_report.get("CPU").get("Codename") in cpu_data.IntelCPUGenerations[50:] else "0x001F0004", 
-                self.dsdt
-            )[0][0].split(".")[-1]
+            smbus_device_name = self.acpi.get_device_paths_with_hid("0x001F0003" if self.hardware_report.get("CPU").get("Codename") in cpu_data.IntelCPUGenerations[50:] else "0x001F0004", self.dsdt)[0][0].split(".")[-1]
         except:
-            smbus_device_name = "SBUS"  # 默认名称
+            smbus_device_name = "SBUS"
             
         pci_bus_device = ".".join(self.lpc_bus_device.split(".")[:2])
         smbus_device_path = "{}.{}".format(pci_bus_device, smbus_device_name)
@@ -1611,8 +1608,8 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "[[SMBUSName]]", 0)
         Device (BUS0)
         {
             Name (_CID, "smbus")
-            Name (_ADR, Zero)  // _ADR: 地址
-            Method (_STA, 0, NotSerialized)  // _STA: 状态
+            Name (_ADR, Zero)
+            Method (_STA, 0, NotSerialized)
             {
                 If (_OSI ("Darwin"))
                 {
@@ -1638,7 +1635,6 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "[[SMBUSName]]", 0)
         }
 
     def add_usb_power_properties(self):
-        # 添加USB电源属性
         ssdt_name = "SSDT-USBX"
         ssdt_content = """
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "USBX", 0x00001000)
@@ -1647,8 +1643,8 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "USBX", 0x00001000)
     {
         Device (USBX)
         {
-            Name (_ADR, Zero)  // _ADR: 地址
-            Method (_DSM, 4, NotSerialized)  // _DSM: 设备特定方法
+            Name (_ADR, Zero)  // _ADR: Address
+            Method (_DSM, 4, NotSerialized)  // _DSM: Device-Specific Method
             {
                 If (LNot (Arg2))
                 {
@@ -1678,7 +1674,6 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "USBX", 0x00001000)
         
         usb_power_properties = None
         if self.utils.contains_any(["MacPro7,1", "iMacPro1,1", "iMac20,", "iMac19,", "iMac18,", "iMac17,", "iMac16,"], self.smbios_model):
-            # 桌面机型的USB电源属性
             usb_power_properties = {
                 "kUSBSleepPowerSupply":"0x13EC",
                 "kUSBSleepPortCurrentLimit":"0x0834",
@@ -1686,7 +1681,6 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "USBX", 0x00001000)
                 "kUSBWakePortCurrentLimit":"0x0834"
             }
         elif "MacMini8,1" in self.smbios_model:
-            # Mac mini的USB电源属性
             usb_power_properties = {
                 "kUSBSleepPowerSupply":"0x0C80",
                 "kUSBSleepPortCurrentLimit":"0x0834",
@@ -1694,13 +1688,11 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "USBX", 0x00001000)
                 "kUSBWakePortCurrentLimit":"0x0834"
             }
         elif self.utils.contains_any(["MacBookPro16,", "MacBookPro15,", "MacBookPro14,", "MacBookPro13,", "MacBookAir9,1"], self.smbios_model):
-            # 现代笔记本的USB电源属性
             usb_power_properties = {
                 "kUSBSleepPortCurrentLimit":"0x0BB8",
                 "kUSBWakePortCurrentLimit":"0x0BB8"
             }
         elif "MacBook9,1" in self.smbios_model:
-            # 旧款MacBook的USB电源属性
             usb_power_properties = {
                 "kUSBSleepPowerSupply":"0x05DC",
                 "kUSBSleepPortCurrentLimit":"0x05DC",
@@ -1722,15 +1714,14 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "USBX", 0x00001000)
             }
 
     def ambient_light_sensor(self):
-        # 创建环境光传感器设备
         ssdt_name = "SSDT-ALS0"
         ssdt_content = """
-// 来源: https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/Source/SSDT-ALS0.dsl
+// Resource: https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/Source/SSDT-ALS0.dsl
 
 /*
- * 从macOS 10.15开始，环境光传感器的存在是背光功能所必需的。
- * 这里我们创建一个环境光传感器ACPI设备，可被SMCLightSensor驱动用来
- * 通过SMC接口报告虚拟值（当没有实际设备存在时）或有效值。
+ * Starting with macOS 10.15 Ambient Light Sensor presence is required for backlight functioning.
+ * Here we create an Ambient Light Sensor ACPI Device, which can be used by SMCLightSensor kext
+ * to report either dummy (when no device is present) or valid values through SMC interface.
  */
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "ALS0", 0x00000000)
 {
@@ -1816,7 +1807,6 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "[[ALSName]]", 0x00000000)
         }
     
     def findall_power_resource_blocks(self, table_lines):
-        # 查找ACPI表中的所有PowerResource块
         power_resource_blocks = []
 
         i = 0
@@ -1840,7 +1830,6 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "[[ALSName]]", 0x00000000)
         return power_resource_blocks
 
     def is_method_in_power_resource(self, method, table_lines):
-        # 检查方法是否位于PowerResource块内
         power_resource_blocks = self.findall_power_resource_blocks(table_lines)
         
         for start, end in power_resource_blocks:
@@ -1849,7 +1838,6 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "[[ALSName]]", 0x00000000)
         return False
 
     def disable_unsupported_device(self):
-        # 禁用不受支持的设备
         results = {
             "Add": []
         }
@@ -1888,20 +1876,20 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DGPU", 0x00000000)
     External ([[DevicePath]]._ON_, MethodObj)"""
                 if ps3_method_found:
                     ssdt_content += """
-    External ([[DevicePath]]._PS0, MethodObj)  // _PS0: 电源状态0
-    External ([[DevicePath]]._PS3, MethodObj)  // _PS3: 电源状态3
-    External ([[DevicePath]]._DSM, MethodObj)  // _DSM: 设备特定方法
+    External ([[DevicePath]]._PS0, MethodObj)
+    External ([[DevicePath]]._PS3, MethodObj)
+    External ([[DevicePath]]._DSM, MethodObj)
 """
                 ssdt_content += """
     Device (DGPU)
     {
         Name (_HID, "DGPU1000")
-        Method (_INI, 0, NotSerialized)  // _INI: 初始化
+        Method (_INI, 0, NotSerialized)
         {
             _OFF ()
         }
 
-        Method (_STA, 0, NotSerialized)  // _STA: 状态
+        Method (_STA, 0, NotSerialized)
         {
             If (_OSI ("Darwin"))
             {
@@ -1913,7 +1901,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DGPU", 0x00000000)
             }
         }
 
-        Method (_ON, 0, NotSerialized)  // _ON: 开启
+        Method (_ON, 0, NotSerialized)
         {
 """
                 if off_method_found:
@@ -1929,7 +1917,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DGPU", 0x00000000)
                 ssdt_content += """
         }
 
-        Method (_OFF, 0, NotSerialized)  // _OFF: 关闭
+        Method (_OFF, 0, NotSerialized)
         {
 """
                 if off_method_found:
@@ -1939,11 +1927,11 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DGPU", 0x00000000)
 
                 if ps3_method_found:
                     ssdt_content += """
-            [[DevicePath]]._DSM (ToUUID ("a486d8f8-0bda-471b-a72b-6042a6b5bee0") /* 未知UUID */, 0x0100, 0x1A, Buffer (0x04)
+            [[DevicePath]]._DSM (ToUUID ("a486d8f8-0bda-471b-a72b-6042a6b5bee0") /* Unknown UUID */, 0x0100, 0x1A, Buffer (0x04)
             {
                     0x01, 0x00, 0x00, 0x03                           // ....
             })
-            [[DevicePath]]._PS3 ()  // 进入电源状态3
+            [[DevicePath]]._PS3 ()
             """
         
                 ssdt_content += """\n        }\n    }\n}"""
@@ -1955,7 +1943,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DNET", 0x00000000)
 {
     External ([[DevicePath]], DeviceObj)
 
-    Method ([[DevicePath]]._DSM, 4, NotSerialized)  // _DSM: 设备特定方法
+    Method ([[DevicePath]]._DSM, 4, NotSerialized)  // _DSM: Device-Specific Method
     {
         If ((!Arg2 || (_OSI ("Darwin") == Zero)))
         {
@@ -1997,14 +1985,13 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DNET", 0x00000000)
 }
 """
             elif "Storage" in device_name:
-                # 禁用NVMe存储设备
                 ssdt_name = "SSDT-Disable_NVMe_{}".format(device_props.get("ACPI Path").split(".")[-2])
                 ssdt_content = """
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "DNVMe", 0x00000000)
 {
     External ([[DevicePath]], DeviceObj)
 
-    Method ([[DevicePath]]._DSM, 4, NotSerialized)  // _DSM: 设备特定方法
+    Method ([[DevicePath]]._DSM, 4, NotSerialized)  // _DSM: Device-Specific Method
     {
         If (_OSI ("Darwin"))
         {
@@ -2043,7 +2030,6 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DNVMe", 0x00000000)
         return results
   
     def enable_backlight_controls(self):
-        # 启用背光控制
         patches = []
 
         integrated_gpu = list(self.hardware_report.get("GPU").items())[-1][-1]
@@ -2057,7 +2043,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DNVMe", 0x00000000)
                                 
         if "PNLF" in self.dsdt.get("table"):
             patches.append({
-                "Comment": "PNLF 重命名为 XNLF",
+                "Comment": "PNLF to XNLF Rename",
                 "Find": "504E4C46",
                 "Replace": "584E4C46"
             })
@@ -2067,14 +2053,14 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "DNVMe", 0x00000000)
 
             if binascii.unhexlify("084E4243460A00") in table.get("raw"):
                 patches.append({
-                    "Comment": "NBCF 0x00 改为 0x01",
+                    "Comment": "NBCF 0x00 to 0x01",
                     "Find": "084E4243460A00",
                     "Replace": "084E4243460A01"
                 })
                 break
             elif binascii.unhexlify("084E42434600") in table.get("raw"):
                 patches.append({
-                    "Comment": "NBCF 0x00 改为 0x01",
+                    "Comment": "NBCF Zero to One",
                     "Find": "084E42434600",
                     "Replace": "084E42434601"
                 })
@@ -2090,11 +2076,11 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "PNLF", 0x00000000)
             ssdt_content += """\n    Device (PNLF)"""
         ssdt_content += """
     {
-        Name (_HID, EisaId ("APP0002"))  // _HID: 硬件ID
-        Name (_CID, "backlight")  // _CID: 兼容ID
-        Name (_UID, [[uid_value]])  // _UID: 唯一ID
+        Name (_HID, EisaId ("APP0002"))  // _HID: Hardware ID
+        Name (_CID, "backlight")  // _CID: Compatible ID
+        Name (_UID, [[uid_value]])  // _UID: Unique ID
         
-        Method (_STA, 0, NotSerialized)  // _STA: 状态
+        Method (_STA, 0, NotSerialized)  // _STA: Status
         {
             If (_OSI ("Darwin"))
             {
@@ -2117,15 +2103,15 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "PNLF", 0x00000000)
                     Offset (0x02), GDID,16,
                     Offset (0x10), BAR1,32,
                 }
-                // IGPU PWM背光寄存器描述:
-                //   LEV2 当前未使用
-                //   LEVL Sandy/Ivy平台的背光亮度
-                //   P0BL 计数器，当为0时是垂直空白
-                //   GRAN 详见下面的INI1方法描述
-                //   LEVW 应初始化为0xC0000000
-                //   LEVX PWMMax（除FBTYPE_HSWPLUS外，是max/level的组合，Sandy/Ivy存储在MSW中）
-                //   LEVD Coffeelake平台的背光亮度
-                //   PCHL 当前未使用
+                // IGPU PWM backlight register descriptions:
+                //   LEV2 not currently used
+                //   LEVL level of backlight in Sandy/Ivy
+                //   P0BL counter, when zero is vertical blank
+                //   GRAN see description below in INI1 method
+                //   LEVW should be initialized to 0xC0000000
+                //   LEVX PWMMax except FBTYPE_HSWPLUS combo of max/level (Sandy/Ivy stored in MSW)
+                //   LEVD level of backlight for Coffeelake
+                //   PCHL not currently used
                 OperationRegion (RMB1, SystemMemory, BAR1 & ~0xF, 0xe1184)
                 Field(RMB1, AnyAcc, Lock, Preserve)
                 {
@@ -2271,23 +2257,31 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "GPI0", 0x00000000)
               
         ssdt_name = "SSDT-PMC"
         ssdt_content = """
-// 来源: https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/Source/SSDT-PMC.dsl
+// Resource: https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/AcpiSamples/Source/SSDT-PMC.dsl
 
 /*
- * Intel 300系列PMC支持macOS
+ * Intel 300-series PMC support for macOS
  *
- * 从Z390芯片组开始，PMC（D31:F2）只能通过MMIO访问。
- * 由于ACPI中没有标准的PMC设备，Apple引入了自己的命名"APP9876"，以便从AppleIntelPCHPMC驱动程序访问该设备。
- * 为避免混淆，我们在所有其他操作系统中禁用此设备，因为它们通常使用另一个非标准设备，其HID为"PNP0C02"，UID为"PCHRESV"。
+ * Starting from Z390 chipsets PMC (D31:F2) is only available through MMIO.
+ * Since there is no standard device for PMC in ACPI, Apple introduced its
+ * own naming "APP9876" to access this device from AppleIntelPCHPMC driver.
+ * To avoid confusion we disable this device for all other operating systems,
+ * as they normally use another non-standard device with "PNP0C02" HID and
+ * "PCHRESV" UID.
  *
- * 在某些实现中，包括APTIO V，NVRAM访问需要PMC初始化，否则会在SMM模式下冻结。
- * 其原因尚不清楚。请注意，PMC和SPI位于单独的内存区域，PCHRESV映射两者，但AppleIntelPCHPMC仅使用PMC区域：
+ * On certain implementations, including APTIO V, PMC initialisation is
+ * required for NVRAM access. Otherwise it will freeze in SMM mode.
+ * The reason for this is rather unclear. Note, that PMC and SPI are
+ * located in separate memory regions and PCHRESV maps both, yet only
+ * PMC region is used by AppleIntelPCHPMC:
  * 0xFE000000~0xFE00FFFF - PMC MBAR
  * 0xFE010000~0xFE010FFF - SPI BAR0
- * 0xFE020000~0xFE035FFF - ACPI模式下的SerialIo BAR
+ * 0xFE020000~0xFE035FFF - SerialIo BAR in ACPI mode
  *
- * PMC设备与LPC总线无关，但将其添加到LPC总线范围是为了更快地初始化。
- * 如果将其添加到它通常存在的PCI0中，它将在PCI配置的最后启动，这对于NVRAM支持来说太晚了。
+ * PMC device has nothing to do to LPC bus, but is added to its scope for
+ * faster initialisation. If we add it to PCI0, where it normally exists,
+ * it will start in the end of PCI configuration, which is too late for
+ * NVRAM support.
  */
 DefinitionBlock ("", "SSDT", 2, "ACDT", "PMCR", 0x00001000)
 {
@@ -2297,8 +2291,8 @@ DefinitionBlock ("", "SSDT", 2, "ACDT", "PMCR", 0x00001000)
     {
         Device (PMCR)
         {
-            Name (_HID, EisaId ("APP9876"))  // _HID: 硬件ID
-            Method (_STA, 0, NotSerialized)  // _STA: 状态
+            Name (_HID, EisaId ("APP9876"))  // _HID: Hardware ID
+            Method (_STA, 0, NotSerialized)  // _STA: Status
             {
                 If (_OSI ("Darwin"))
                 {
@@ -2309,7 +2303,7 @@ DefinitionBlock ("", "SSDT", 2, "ACDT", "PMCR", 0x00001000)
                     Return (Zero)
                 }
             }
-            Name (_CRS, ResourceTemplate ()  // _CRS: 当前资源设置
+            Name (_CRS, ResourceTemplate ()  // _CRS: Current Resource Settings
             {
                 Memory32Fixed (ReadWrite,
                     0xFE000000,         // Address Base
@@ -2331,11 +2325,10 @@ DefinitionBlock ("", "SSDT", 2, "ACDT", "PMCR", 0x00001000)
         }
     
     def remove_conditional_scope(self):
-        # 移除条件ACPI作用域声明
         return {
             "Patch": [
                 {
-                    "Comment": "移除条件ACPI作用域声明",
+                    "Comment": "Remove conditional ACPI scope declaration",
                     "Find": "A000000092935043484100",
                     "Replace": "A3A3A3A3A3A3A3A3A3A3A3",
                     "Mask": "FF000000FFFFFFFFFFFFFF",
@@ -2346,12 +2339,11 @@ DefinitionBlock ("", "SSDT", 2, "ACDT", "PMCR", 0x00001000)
         }
 
     def fix_hp_005_post_error(self):
-        # 修复HP实时时钟电源丢失(005)启动错误
         if binascii.unhexlify("4701700070000108") in self.dsdt.get("raw"):
             return {
                 "Patch": [
                     {
-                        "Comment": "修复HP实时时钟电源丢失(005)启动错误",
+                        "Comment": "Fix HP Real-Time Clock Power Loss (005) Post Error",
                         "Find": "4701700070000108",
                         "Replace": "4701700070000102"
                     }
@@ -2364,32 +2356,35 @@ DefinitionBlock ("", "SSDT", 2, "ACDT", "PMCR", 0x00001000)
         
         ssdt_name = "SSDT-RMNE"
         ssdt_content = """
-// 来源: https://github.com/RehabMan/OS-X-Null-Ethernet/blob/master/SSDT-RMNE.dsl
+// Resource: https://github.com/RehabMan/OS-X-Null-Ethernet/blob/master/SSDT-RMNE.dsl
 
-/* ssdt.dsl -- NullEthernet的SSDT注入器
+/* ssdt.dsl -- SSDT injector for NullEthernet
  *
- * 版权所有 (c) 2014 RehabMan <racerrehabman@gmail.com>
- * 保留所有权利。
+ * Copyright (c) 2014 RehabMan <racerrehabman@gmail.com>
+ * All rights reserved.
  *
- * 本程序是自由软件；您可以根据自由软件基金会发布的GNU通用公共许可证的条款
- * 重新发布或修改它，无论是版本2还是（根据您的选择）任何更新的版本。
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
  *
- * 本程序是基于"现况"发布的，不提供任何形式的明示或暗示保证，
- * 包括但不限于适销性和特定用途适用性的保证。
- * 有关更多详情，请参阅GNU通用公共许可证。
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
  */
 
-// 使用此SSDT作为修补DSDT的替代方案...
+// Use this SSDT as an alternative to patching your DSDT...
 
 DefinitionBlock("", "SSDT", 2, "ZPSS", "RMNE", 0x00001000)
 {
     Device (RMNE)
     {
         Name (_ADR, Zero)
-        // NullEthernet驱动程序通过此HID匹配
+        // The NullEthernet kext matches on this HID
         Name (_HID, "NULE0000")
-        // 这是驱动程序返回的MAC地址。如有必要，请修改。
+        // This is the MAC address returned by the kext. Modify if necessary.
         Name (MAC, Buffer() { [[MACAddress]] })
         Method (_DSM, 4, NotSerialized)
         {
@@ -2480,8 +2475,8 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RtcRange", 0x00000000)
 
     Device ([[device_path]])
     {
-        Name (_HID, EisaId ("PNP0B00") /* AT 实时时钟 */)  // _HID: 硬件ID
-        Name (_CRS, ResourceTemplate ()  // _CRS: 当前资源设置
+        Name (_HID, EisaId ("PNP0B00") /* AT Real-Time Clock */)  // _HID: Hardware ID
+        Name (_CRS, ResourceTemplate ()  // _CRS: Current Resource Settings
         {
             IO (Decode16,
                 0x0070,             // Range Minimum
@@ -2556,7 +2551,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "RtcRange", 0x00000000)
             wole_object = None
         
         ssdt_content = """
-// 来源: https://github.com/5T33Z0/OC-Little-Translated/blob/main/04_Fixing_Sleep_and_Wake_Issues/060D_Instant_Wake_Fix/README.md
+// Resource: https://github.com/5T33Z0/OC-Little-Translated/blob/main/04_Fixing_Sleep_and_Wake_Issues/060D_Instant_Wake_Fix/README.md
 
 DefinitionBlock ("", "SSDT", 2, "ZPSS", "_PRW", 0x00000000)
 {"""
@@ -3217,11 +3212,11 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "WMIS", 0x00000000)
 
     def select_acpi_tables(self):
         while True:
-            self.utils.head("选择ACPI表")
+            self.utils.head("选择 ACPI 表")
             print("")
             print("Q. 退出")
             print(" ")
-            menu = self.utils.request_input("请在此处拖放ACPI表文件夹: ")
+            menu = self.utils.request_input("请将 ACPI 表文件夹拖放到此处: ")
             if menu.lower() == "q":
                 self.utils.exit_program()
             path = self.utils.normalize_path(menu)
@@ -3323,7 +3318,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "WMIS", 0x00000000)
         while True:
             contents = []
             contents.append("")
-            contents.append("可用补丁列表:")
+            contents.append("可用补丁列表：")
             contents.append("")
             for index, kext in enumerate(self.patches, start=1):
                 checkbox = "[*]" if kext.checked else "[ ]"
@@ -3333,7 +3328,7 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "WMIS", 0x00000000)
                     line = "\033[1;32m{}\033[0m".format(line)
                 contents.append(line)
             contents.append("")
-            contents.append("\033[1;93m注意:\033[0m 您可以通过输入用逗号分隔的索引来选择多个kext（例如：'1, 2, 3'）。")
+            contents.append("\033[1;注意：\033[0m 您可以通过输入以逗号分隔的索引来选择多个内核扩展（例如，输入 '1, 2, 3'）")
             contents.append("")
             contents.append("B. 返回")
             contents.append("Q. 退出")
@@ -3341,9 +3336,9 @@ DefinitionBlock ("", "SSDT", 2, "ZPSS", "WMIS", 0x00000000)
             content = "\n".join(contents)
 
             self.utils.adjust_window_size(content)
-            self.utils.head("自定义ACPI补丁选择", resize=False)
+            self.utils.head("自定义 ACPI 补丁选择", resize=False)
             print(content)
-            option = self.utils.request_input("选择您的选项: ")
+            option = self.utils.request_input("选择您的选项： ")
             if option.lower() == "q":
                 self.utils.exit_program()
             if option.lower() == "b":
