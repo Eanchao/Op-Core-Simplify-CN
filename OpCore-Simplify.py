@@ -162,7 +162,7 @@ class OCPE:
                 print("\033[1;36m建议的 macOS 版本：\033[0m")
                 print("- 为了更好的兼容性和稳定性，我们建议您仅使用 {} 或更早版本。".format(os_data.get_macos_name_by_darwin(suggested_macos_version)))
             print("")
-            print("Available macOS versions:")
+            print("可用 macOS 版本：")
             print("")
 
             oclp_min = int(ocl_patched_macos_version[-1][:2]) if ocl_patched_macos_version else 99
@@ -380,8 +380,8 @@ class OCPE:
             print("  硬件报告： {}".format(hardware_report_path or '未选择'))
             if hardware_report_path:
                 print("")
-                print("  macOS Version:   {}".format(os_data.get_macos_name_by_darwin(macos_version) if macos_version else '未选择') + (' (' + macos_version + ')' if macos_version else '') + ('. \033[1;93m需要 OpenCore Legacy Patcher\033[0m' if needs_oclp else ''))
-                print("  SMBIOS:          {}".format(smbios_model or '未选择'))
+                print("  macOS 版本：   {}".format(os_data.get_macos_name_by_darwin(macos_version) if macos_version else '未选择') + (' (' + macos_version + ')' if macos_version else '') + ('. \033[1;93m需要 OpenCore Legacy Patcher\033[0m' if needs_oclp else ''))
+                print("  SMBIOS：          {}".format(smbios_model or '未选择'))
                 if disabled_devices:
                     print("  禁用设备：")
                     for device, _ in disabled_devices.items():
@@ -391,7 +391,7 @@ class OCPE:
             print("1. 选择硬件报告")
             print("2. 选择 macOS 版本")
             print("3. 自定义 ACPI 补丁")
-            print("4. 自定义 Kexts")
+            print("4. 自定义 Kexts（内核扩展）")
             print("5. 自定义 SMBIOS 模型")
             print("6. 构建 OpenCore EFI")
             print("")

@@ -91,34 +91,37 @@
 ## 🚀 **使用方法**
 
 1. **下载 OpCore Simplify**：
-   - 点击 **Code** → **Download ZIP**，或通过此 [链接](https://github.com/lzhoang2801/OpCore-Simplify/archive/refs/heads/main.zip) 直接下载。  
-   - 将下载的 ZIP 文件解压到您想要的位置。
-
-   ![下载 OpCore Simplify](https://i.imgur.com/mcE7OSX.png)
+   > 下载方式有两种：
+   1) 从 [GitHub](https://github.com/lzhoang2801/OpCore-Simplify/) 仓库下载：点击 **Code** → **Download ZIP**，或通过此[链接](https://github.com/lzhoang2801/OpCore-Simplify/archive/refs/heads/main.zip)直接下载。**（推荐）**
+   ![从Github下载](./Images/DownloadFromGithub.png)
+   2) 从 [Gitee](https://gitee.com/eanchao/op-core-simplify) 仓库下载：点击 **克隆/下载** → **下载ZIP**，或通过此[链接](https://gitee.com/eanchao/op-core-simplify/repository/archive/main.zip)直接下载汉化版。
+   - 将下载的 ZIP 文件解压到您想要的位置。`
 
 2. **运行 OpCore Simplify**：
    - 在 **Windows** 上，运行 `OpCore-Simplify.bat`。
    - 在 **macOS** 上，运行 `OpCore-Simplify.command`。
    - 在 **Linux** 上，使用现有的 Python 解释器运行 `OpCore-Simplify.py`。
-
-   ![OpCore Simplify 菜单](https://i.imgur.com/vTr1V9D.png)
+   ```sh
+   python opcore-simplify.py
+   ```
+   ![OpCore Simplify 菜单](./Images/ScriptMainMenuForWindows.png)
 
 3. **选择硬件报告**：
-   - 在 Windows 上，会有一个 `E. Export hardware report` 选项。建议使用此选项以获得与您构建时的硬件配置和 BIOS 最匹配的结果。
+   - 在 Windows 上，会有一个 `E. 导出硬件报告` 选项。建议使用此选项以获得与您构建时的硬件配置和 BIOS 最匹配的结果。
    - 或者，使用 [**Hardware Sniffer**](https://github.com/lzhoang2801/Hardware-Sniffer) 创建 `Report.json` 和 ACPI 转储文件进行手动配置。
 
-   ![选择硬件报告](https://i.imgur.com/MbRmIGJ.png)
+   ![选择硬件报告](./Images/HardwareReportMenuForWindows.png)
 
-   ![加载 ACPI 表](https://i.imgur.com/SbL6N6v.png)
+   ![加载 ACPI 表](./Images/LoadingACPI.png)
 
-   ![兼容性检查器](https://i.imgur.com/kuDGMmp.png)
+   ![兼容性检查](./Images/CompatibilityChecker.png)
 
 4. **选择 macOS 版本并自定义 OpenCore EFI**：
    - 默认情况下，将为您的硬件选择最新的兼容 macOS 版本。
    - OpCore Simplify 将自动应用必要的 ACPI 补丁和驱动。
    - 您可以根据需要手动查看和自定义这些设置。
 
-   ![OpCore Simplify 菜单](https://i.imgur.com/TSk9ejy.png)
+   ![OpCore Simplify 菜单](./Images/AvailablemacOSVersions.png)
 
 5. **构建 OpenCore EFI**：
    - 自定义所有选项后，选择 **Build OpenCore EFI** 生成您的 EFI。
@@ -135,7 +138,7 @@
 
    ![结果](https://i.imgur.com/MIPigPF.png)
 
-7. **创建 USB 并安装 macOS**： 
+7. **创建 USB 并安装 macOS**：
    - 在 Windows 上使用 [**UnPlugged**](https://github.com/corpnewt/UnPlugged) 创建 USB macOS 安装程序，或在 macOS 上按照 [本指南](https://dortania.github.io/OpenCore-Install-Guide/installer-guide/mac-install.html) 操作。
    - 如需故障排除，请参考 [OpenCore 故障排除指南](https://dortania.github.io/OpenCore-Install-Guide/troubleshooting/troubleshooting.html)。
 

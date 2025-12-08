@@ -384,7 +384,7 @@ class CompatibilityChecker:
         for device_type, function in steps:
             if self.hardware_report.get(device_type):
                 index += 1
-                print("{}. {}:".format(index, device_type))
+                print("{}. {}:".format(index, self.device_type_match(device_type)))
                 time.sleep(0.25)
                 function()
 
@@ -392,3 +392,20 @@ class CompatibilityChecker:
         self.utils.request_input()
 
         return hardware_report, (self.min_native_macos_version, self.max_native_macos_version), self.ocl_patched_macos_version
+    
+    def device_type_match(self, device_type):
+        matchs = [
+            ('CPU', '处理器'),
+            ('GPU', '显卡'),
+            ('Sound', '声卡'),
+            ('Biometric', '生物识别'),
+            ('Network', '网络'),
+            ('Storage Controllers', '存储控制器'),
+            ('Bluetooth', '蓝牙'),
+            ('SD Controller', 'SD存储控制器')
+        ]
+
+        for device_type_eng, device_type_cn in matchs:
+            if device_type == device_type_eng:
+                return device_type_cn
+        return device_type

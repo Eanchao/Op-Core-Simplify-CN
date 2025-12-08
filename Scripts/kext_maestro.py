@@ -17,12 +17,12 @@ except NameError:
 
 class KextMaestro:
     """
-    内核扩展管理类，用于管理和配置macOS系统上的内核扩展(kext)
+    kexts（内核扩展）管理类，用于管理和配置macOS系统上的内核扩展(kext)
     主要功能包括：
     - PCI ID提取
     - Intel HEDT CPU检测
-    - 内核扩展兼容性检查
-    - 内核扩展安装和配置
+    - kexts（内核扩展）兼容性检查
+    - kexts（内核扩展）安装和配置
     """
     def __init__(self):
         self.utils = utils.Utils()
@@ -107,7 +107,7 @@ class KextMaestro:
 
     def check_kext(self, index, target_darwin_version, allow_unsupported_kexts=False):
         """
-        检查内核扩展是否兼容目标macOS版本
+        检查 kext（内核扩展）是否兼容目标macOS版本
         
         参数:
             index: kext在kexts列表中的索引
@@ -133,7 +133,7 @@ class KextMaestro:
 
     def select_required_kexts(self, hardware_report, macos_version, needs_oclp, acpi_patches):
         """
-        根据硬件报告和macOS版本选择必要的内核扩展
+        根据硬件报告和 macOS 版本选择必要的 kexts（内核扩展）
         
         参数:
             hardware_report: 硬件报告信息
@@ -144,9 +144,9 @@ class KextMaestro:
         返回:
             更新后的needs_oclp值
         """
-        self.utils.head("选择必要的内核扩展")
+        self.utils.head("选择必要的 kexts（内核扩展）")
         print("")
-        print("正在检查必要的内核扩展...")
+        print("正在检查必要的 kexts（内核扩展）...")
 
         for kext in self.kexts:
             kext.checked = kext.required
@@ -476,7 +476,7 @@ class KextMaestro:
 
     def install_kexts_to_efi(self, macos_version, kexts_directory):
         """
-        将选中的内核扩展安装到EFI目录
+        将选中的 kexts（内核扩展）安装到EFI目录
         
         参数:
             macos_version: macOS版本号
@@ -796,7 +796,7 @@ class KextMaestro:
             content = "\n".join(contents)
 
             self.utils.adjust_window_size(content)
-            self.utils.head("配置内核扩展", resize=False)
+            self.utils.head("配置 kexts（内核扩展）", resize=False)
             print(content)
             option = self.utils.request_input("选择您的选项: ")
             if option.lower() == "b":
