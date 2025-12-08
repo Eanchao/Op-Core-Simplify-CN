@@ -275,9 +275,9 @@ class ConfigProdigy:
         while True:
             contents = []
             contents.append("")
-            contents.append("List of Codec Layouts:")
+            contents.append("Codec 布局列表：")
             contents.append("")
-            contents.append("ID   Comment")
+            contents.append("ID   注释")
             contents.append("------------------------------------------------------------------")
             for layout in available_layouts:
                 line = "{:<4} {}".format(layout.id, layout.comment[:60])
@@ -286,16 +286,16 @@ class ConfigProdigy:
                 else:
                     contents.append(line)
             contents.append("")
-            contents.append("\033[1;93mNote:\033[0m")
-            contents.append("- The default layout may not be optimal.")
-            contents.append("- Test different layouts to find what works best for your system.")
+            contents.append("\033[1;注意：\033[0m")
+            contents.append("- 默认布局可能不是最优的。")
+            contents.append("- 尝试不同的布局以找到最适合您系统的布局。")
             contents.append("")
             content = "\n".join(contents)
 
             self.utils.adjust_window_size(content)
-            self.utils.head("Choosing Codec Layout ID", resize=False)
+            self.utils.head("选择 Codec 布局 ID", resize=False)
             print(content)
-            selected_layout_id = self.utils.request_input(f"Enter the ID of the codec layout you want to use (default: {default_layout.id}): ") or default_layout.id
+            selected_layout_id = self.utils.request_input(f"输入您要使用的 Codec 布局 ID（默认：{default_layout.id}）： ") or default_layout.id
 
             try:
                 selected_layout_id = int(selected_layout_id)

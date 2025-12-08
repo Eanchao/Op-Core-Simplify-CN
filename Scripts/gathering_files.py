@@ -234,7 +234,7 @@ class gatheringFiles:
                     print("使用先前下载的 {} 版本。".format(product_name))
                     continue
                 else:
-                    raise Exception("Could not download {} at this time. Please try again later.".format(product_name))
+                    raise Exception("无法下载 {}。请稍后重试。".format(product_name))
             
             self.utils.extract_zip_file(zip_path)
             self.utils.create_folder(asset_dir, remove_content=True)

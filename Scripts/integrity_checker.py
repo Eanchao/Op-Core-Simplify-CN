@@ -40,17 +40,17 @@ class IntegrityChecker:
 
     def verify_folder_integrity(self, folder_path, manifest_path=None):
         if not os.path.isdir(folder_path):
-            return None, "Folder not found."
+            return None, "文件夹未找到。"
 
         if manifest_path is None:
             manifest_path = os.path.join(folder_path, "manifest.json")
 
         if not os.path.exists(manifest_path):
-            return None, "Manifest file not found."
+            return None, "清单文件未找到。"
 
         manifest_data = self.utils.read_file(manifest_path)
         if not isinstance(manifest_data, dict):
-            return None, "Invalid manifest file."
+            return None, "清单文件格式无效。"
             
         issues = {
             "modified": [],
