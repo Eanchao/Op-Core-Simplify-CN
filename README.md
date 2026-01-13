@@ -93,7 +93,7 @@
 1. **下载 OpCore Simplify**：
    > 下载方式有两种：
    1) 从 [GitHub](https://github.com/lzhoang2801/OpCore-Simplify/) 仓库下载：点击 **Code** → **Download ZIP**，或通过此[链接](https://github.com/lzhoang2801/OpCore-Simplify/archive/refs/heads/main.zip)直接下载。**（推荐）**
-   ![从Github下载](./Images/DownloadFromGithub.png)
+   ![从Github下载](./Images/DownloadFromGithub_Eanchao.png)
    2) 从 [Gitee](https://gitee.com/eanchao/op-core-simplify) 仓库下载：点击 **克隆/下载** → **下载ZIP**，或通过此[链接](https://gitee.com/eanchao/op-core-simplify/repository/archive/main.zip)直接下载汉化版。
    - 将下载的 ZIP 文件解压到您想要的位置。`
 
