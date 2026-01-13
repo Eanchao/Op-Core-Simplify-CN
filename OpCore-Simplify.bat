@@ -1,10 +1,6 @@
 @echo off
 REM Source: https://github.com/corpnewt/SSDTTime/blob/97a3963e40a153a8df5ae61a73e150cd7a119b3c/SSDTTime.bat
 REM Get our local path before delayed expansion - allows ! in path
-
-REM Chinese Version: 20260113
-REM Fork: https://github.com/lzhoang2801/OpCore-Simplify
-
 set "thisDir=%~dp0"
 
 setlocal enableDelayedExpansion
@@ -46,9 +42,9 @@ if "!syspath!" == "" (
     )
     if "!syspath!" == "" (
         cls
-        echo   ###     ###
-        echo  #   警告   #
-        echo ###     ###
+        echo   ###  ###
+        echo  # 警告 #
+        echo ###  ###
         echo.
         echo Could not locate cmd.exe, reg.exe, or where.exe
         echo.
@@ -117,9 +113,10 @@ if !tried! lss 1 (
     )
 ) else (
     cls
-    echo   ###     ###
-    echo  #   警告   #
-    echo ###     ###
+    echo   ###  ###
+    echo  # 警告 #
+    echo ###  ###
+
     echo.
     REM 无论出于何种原因，都无法安装 - 显示错误消息
     echo Python 未安装或未在您的 PATH 变量中找到。
@@ -201,13 +198,13 @@ exit /b 0
 
 :askinstall
 cls
-echo   ###          ###
+echo   ###           ###
 echo  # Python 未找到 #
-echo ###          ###
+echo ###           ###
 echo.
 echo Python !targetpy! 未在系统或 PATH 变量中找到。
 echo.
-set /p "menu=是否现在安装它？ [y/n]: "
+set /p "menu=是否现在安装 Python [y/n]: "
 if /i "!menu!"=="y" (
     REM We got the OK - install it
     goto installpy
@@ -224,9 +221,9 @@ REM This will attempt to download and install python
 REM First we get the html for the python downloads page for Windows
 set /a tried=!tried!+1
 cls
-echo   ###            ###
+echo   ###             ###
 echo  # 正在安装 Python #
-echo ###            ###
+echo ###             ###
 echo.
 echo 正在从 https://www.python.org/downloads/windows/ 获取 Python 下载地址...
 powershell -command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;(new-object System.Net.WebClient).DownloadFile('https://www.python.org/downloads/windows/','%TEMP%\pyurl.txt')"
@@ -275,7 +272,7 @@ if not exist "%TEMP%\pyinstall.!pytype!" (
         goto checkpy
     )
 )
-REM 到目前为止，它应该存在 - 让我们以静默模式运行它来安装
+REM It should exist at this point - let's run it to install silently
 echo 正在安装...
 pushd "%TEMP%"
 if /i "!pytype!" == "exe" (
@@ -288,10 +285,11 @@ if /i "!pytype!" == "exe" (
 )
 popd
 echo 安装程序已完成，退出状态为 %ERRORLEVEL%。
-REM 现在我们应该能够删除安装程序并检查 Python 是否存在
+REM Now we should be able to delete the installer and check for py again
 del "%TEMP%\pyinstall.!pytype!"
-REM 如果安装成功，那么我们应该能够在 PATH 中找到 Python
-REM 但是这并不能立即更新 - 让我们尝试手动更新本地 PATH 变量
+REM If it worked, then we should have python in our PATH
+REM this does not get updated right away though - let's try
+REM manually updating the local PATH var
 call :updatepath
 if /i "!just_installing!" == "TRUE" (
     echo.
@@ -302,7 +300,7 @@ if /i "!just_installing!" == "TRUE" (
 exit /b
 
 :runscript
-REM Python 已找到
+REM Python found
 cls
 set "args=%*"
 set "args=!args:"=!"
@@ -323,7 +321,7 @@ if /i "!pause_on_error!" == "yes" (
 goto :EOF
 
 :undouble <string_name> <string_value> <character>
-REM 辅助函数，用于递归地从字符串中删除连续的双字符
+REM Helper function to strip doubles of a single character out of a string recursively
 set "string_value=%~2"
 :undouble_continue
 set "check=!string_value:%~3%~3=%~3!"
@@ -340,23 +338,23 @@ set "upath="
 for /f "USEBACKQ tokens=2* delims= " %%i in (`!syspath!reg.exe query "HKCU\Environment" /v "Path" 2^> nul`) do ( if not "%%j" == "" set "upath=%%j" )
 for /f "USEBACKQ tokens=2* delims= " %%i in (`!syspath!reg.exe query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v "Path" 2^> nul`) do ( if not "%%j" == "" set "spath=%%j" )
 if not "%spath%" == "" (
-    REM 我们在系统 PATH 中找到了一些内容
+    REM We got something in the system path
     set "PATH=%spath%"
     if not "%upath%" == "" (
-        REM 我们在用户 PATH 中也找到了一些内容
+        REM We also have something in the user path
         set "PATH=%PATH%;%upath%"
     )
 ) else if not "%upath%" == "" (
     set "PATH=%upath%"
 )
-REM 从调整后的 PATH 中删除双分号
+REM Remove double semicolons from the adjusted PATH
 call :undouble "PATH" "%PATH%" ";"
 goto :EOF
 
 :getsyspath <variable_name>
-REM 辅助函数，用于返回 cmd.exe、reg.exe 和 where.exe 的有效路径
-REM 通过遍历 ComSpec 变量 - 如果需要，还会修复内存中的路径
-REM 用换行符替换分号
+REM Helper method to return a valid path to cmd.exe, reg.exe, and where.exe by
+REM walking the ComSpec var - will also repair it in memory if need be
+REM Strip double semi-colons
 call :undouble "temppath" "%ComSpec%" ";"
 
 REM Dirty hack to leverage the "line feed" approach - there are some odd side
@@ -365,26 +363,26 @@ REM line - as it seems to behave erradically.
 (set LF=^
 %=this line is empty=%
 )
-REM 用换行符替换分号，并在括号中包装
-REM 以解决一些奇怪的批处理行为
+REM Replace instances of semi-colons with a line feed and wrap
+REM in parenthesis to work around some strange batch behavior
 set "testpath=%temppath:;=!LF!%"
 
-REM 让我们遍历每个路径，并测试 cmd.exe、reg.exe 和 where.exe 是否存在其中
+REM Let's walk each path and test if cmd.exe, reg.exe, and where.exe exist there
 set /a found=0
 for /f "tokens=* delims=" %%i in ("!testpath!") do (
-    REM 仅当我们还没有找到它时才继续
+    REM Only continue if we haven't found it yet
     if not "%%i" == "" (
         if !found! lss 1 (
             set "checkpath=%%i"
-            REM 从末尾移除 "cmd.exe" 如果存在
+            REM Remove "cmd.exe" from the end if it exists
             if /i "!checkpath:~-7!" == "cmd.exe" (
                 set "checkpath=!checkpath:~0,-7!"
             )
-            REM 如果需要，在末尾添加反斜杠
+            REM Pad the end with a backslash if needed
             if not "!checkpath:~-1!" == "\" (
                 set "checkpath=!checkpath!\"
             )
-            REM 让我们看看 cmd、reg 和 where 是否存在其中 - 如果存在，就设置它
+            REM Let's see if cmd, reg, and where exist there - and set it if so
             if EXIST "!checkpath!cmd.exe" (
                 if EXIST "!checkpath!reg.exe" (
                     if EXIST "!checkpath!where.exe" (
