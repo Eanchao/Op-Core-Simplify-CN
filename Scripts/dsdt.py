@@ -7,26 +7,6 @@ from Scripts import run
 from Scripts import utils
 
 class DSDT:
-    """
-    DSDT 实现了与 ACPI 表交互的各种方法，包括：
-    
-    - 加载十六进制格式的 ACPI 表
-    - 将十六进制格式的表反汇编为 AML/ASL
-    - 查找、编辑和保存 ACPI 表
-    - 从 ACPI 二进制文件中检测 ACPI 表
-    - 从内存中转储 ACPI 表（通过 iasl）
-    - 定位和检测特定的 ACPI 对象
-    - 以及其他用于处理 ACPI 表的有用函数
-    
-    这个类在黑苹果场景中最适用于 ACPI 表补丁和探索。
-    
-    属性：
-        run (obj): 用于执行命令的 Run 类实例
-        r (obj): run 属性的引用（快捷方式）
-        iasl_path (str): iasl 编译器的路径
-        tables (dict): 已加载的 ACPI 表的字典
-        type_match (re.Pattern): 用于匹配 ACPI 对象类型的正则表达式
-    """
     def __init__(self, **kwargs):
         #self.dl = downloader.Downloader()
         self.github = github.Github()
@@ -116,7 +96,7 @@ class DSDT:
                 raise FileNotFoundError(
                     errno.ENOENT,
                     os.strerror(errno.ENOENT),
-                    "No valid .aml/.dat files found at {}".format(table_path)
+                    "没有在 {} 中找到有效的 .aml/.dat 文件".format(table_path)
                 )
 
             # 创建一个临时目录并将所有文件复制到那里
@@ -145,7 +125,7 @@ class DSDT:
                 raise FileNotFoundError(
                     errno.ENOENT,
                     os.strerror(errno.ENOENT),
-                    "No valid .aml/.dat files found at {}".format(table_path)
+                    "没有在 {} 中找到有效的 .aml/.dat 文件".format(table_path)
                 )
 
             os.chdir(temp)
@@ -272,7 +252,7 @@ class DSDT:
             for file in to_remove:
                 target_files.pop(file,None)
         except Exception as e:
-            print("错误：{}".format(e))
+            print(e)
             return ({},failed)
         finally:
             os.chdir(cwd)
@@ -289,6 +269,10 @@ class DSDT:
         for line in latest_release.get("body", "").splitlines():
             if "iasl" in line and ".zip" in line:
                 return line.split("\"")[1]
+
+        for asset in latest_release.get("assets", []):
+            if "/iasl" in asset.get("url") and ".zip" in asset.get("url"):
+                return asset.get("url")
             
         return None
     
@@ -317,10 +301,10 @@ class DSDT:
                 self._download_and_extract(temp,self.iasl_url_linux_legacy if legacy else self.iasl_url_linux)
             elif sys.platform == "win32":
                 iasl_url_windows = self.iasl_url_windows_legacy if legacy else self.get_latest_iasl()
-                if not iasl_url_windows: raise Exception("Could not get latest iasl for Windows")
+                if not iasl_url_windows: raise Exception("无法获取适用于 Windows 的最新 iASL")
                 self._download_and_extract(temp,iasl_url_windows)
             else: 
-                raise Exception("Unknown OS")
+                raise Exception("未知操作系统")
         except Exception as e:
             print("发生错误：(\n - {}".format(e))
         shutil.rmtree(temp, ignore_errors=True)
@@ -328,9 +312,9 @@ class DSDT:
         return self.check_iasl(legacy=legacy,try_downloading=False)
 
     def _download_and_extract(self, temp, url):
-        self.u.head("Gathering Files")
+        self.u.head("正在收集文件")
         print("")
-        print("请等待下载 iasl...")
+        print("请等待下载 iASL...")
         print("")
         ztemp = tempfile.mkdtemp(dir=temp)
         zfile = os.path.basename(url)
@@ -357,7 +341,7 @@ class DSDT:
 
     def dump_tables(self, output, disassemble=False):
         # 辅助函数，用于将所有ACPI表转储到指定的输出路径
-        self.u.head("Dumping ACPI Tables")
+        self.u.head("正在转储 ACPI 表")
         print("")
         res = self.check_output(output)
         if os.name == "nt":
@@ -426,57 +410,20 @@ class DSDT:
             return res
 
     def check_output(self, output):
-        """
-        检查输出目录是否存在，不存在则创建
-        
-        参数:
-            output: 输出目录名称
-            
-        返回:
-            创建的输出目录路径
-        """
         t_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), output)
         if not os.path.isdir(t_folder):
             os.makedirs(t_folder)
         return t_folder
 
     def get_hex_from_int(self, total, pad_to = 4):
-        """
-        将整数转换为十六进制字符串，并进行字节反转
-        
-        参数:
-            total: 要转换的整数
-            pad_to: 十六进制字符串的最小长度，不足则用0填充
-            
-        返回:
-            反转字节后的十六进制字符串
-        """
         hex_str = hex(total)[2:].upper().rjust(pad_to,"0")
         return "".join([hex_str[i:i + 2] for i in range(0, len(hex_str), 2)][::-1])
 
     def get_hex(self, line):
-        """
-        从行中提取十六进制数据，去除头部和注释
-        
-        参数:
-            line: 包含十六进制数据的行
-            
-        返回:
-            提取的十六进制字符串
-        """
-        # 去除头部和注释部分
+        # strip the header and commented end
         return line.split(":")[1].split("//")[0].replace(" ","")
 
     def get_line(self, line):
-        """
-        从行中提取内容，去除注释和可能的头部
-        
-        参数:
-            line: 要处理的行
-            
-        返回:
-            提取的内容
-        """
         # 去除注释部分 - 但保留空格
         line = line.split("//")[0]
         if ":" in line:
@@ -484,86 +431,29 @@ class DSDT:
         return line
 
     def get_hex_bytes(self, line):
-        """
-        将十六进制字符串转换为字节
-        
-        参数:
-            line: 十六进制字符串
-            
-        返回:
-            转换后的字节数据
-        """
         return binascii.unhexlify(line)
 
     def get_str_bytes(self, value):
-        """
-        将字符串转换为字节
-        
-        参数:
-            value: 要转换的字符串
-            
-        返回:
-            转换后的字节数据
-        """
         if 2/3!=0 and isinstance(value,str):
             value = value.encode()
         return value
 
     def get_table_with_id(self, table_id):
-        """
-        根据表ID获取ACPI表
-        
-        参数:
-            table_id: 表ID
-            
-        返回:
-            找到的ACPI表或None
-        """
         table_id = self.get_str_bytes(table_id)
         return next((v for k,v in self.acpi_tables.items() if table_id == v.get("id")),None)
 
     def get_table_with_signature(self, table_sig):
-        """
-        根据表签名获取ACPI表
-        
-        参数:
-            table_sig: 表签名
-            
-        返回:
-            找到的ACPI表或None
-        """
         table_sig = self.get_str_bytes(table_sig)
         return next((v for k,v in self.acpi_tables.items() if table_sig == v.get("signature")),None)
     
     def get_table(self, table_id_or_sig):
-        """
-        根据表ID或签名获取ACPI表
-        
-        参数:
-            table_id_or_sig: 表ID或签名
-            
-        返回:
-            找到的ACPI表或None
-        """
         table_id_or_sig = self.get_str_bytes(table_id_or_sig)
         return next((v for k,v in self.acpi_tables.items() if table_id_or_sig in (v.get("signature"),v.get("id"))),None)
 
     def get_dsdt(self):
-        """
-        获取DSDT表
-        
-        返回:
-            DSDT表或None
-        """
         return self.get_table_with_signature("DSDT")
 
     def get_dsdt_or_only(self):
-        """
-        获取DSDT表，如果没有则获取唯一的表
-        
-        返回:
-            DSDT表、唯一的表或None
-        """
         dsdt = self.get_dsdt()
         if dsdt: return dsdt
         # 确保只有一个表
@@ -572,23 +462,13 @@ class DSDT:
         return list(self.acpi_tables.values())[0]
 
     def find_previous_hex(self, index=0, table=None):
-        """
-        找到指定索引之前的十六进制数据
-        
-        参数:
-            index: 开始查找的索引
-            table: 要查找的表，默认为DSDT表或唯一表
-            
-        返回:
-            元组 (hex_text, start_index, end_index)，其中hex_text是十六进制数据，start_index是起始索引，end_index是结束索引
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return ("",-1,-1)
         # 返回指定索引之前的十六进制数字集的索引
         start_index = -1
         end_index   = -1
         old_hex = True
-        for i,line in enumerate(table.get("lines","")):
+        for i,line in enumerate(table.get("lines","")[index::-1]):
             if old_hex:
                 if not self.is_hex(line):
                     # 跳出旧的十六进制区域
@@ -602,23 +482,13 @@ class DSDT:
         return ("",start_index,end_index)
     
     def find_next_hex(self, index=0, table=None):
-        """
-        找到指定索引之后的十六进制数据
-        
-        参数:
-            index: 开始查找的索引
-            table: 要查找的表，默认为DSDT表或唯一表
-            
-        返回:
-            元组 (hex_text, start_index, end_index)，其中hex_text是十六进制数据，start_index是起始索引，end_index是结束索引
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return ("",-1,-1)
         # 返回指定索引之后的十六进制数字集的索引
         start_index = -1
         end_index   = -1
         old_hex = True
-        for i,line in enumerate(table.get("lines","")):
+        for i,line in enumerate(table.get("lines","")[index:]):
             if old_hex:
                 if not self.is_hex(line):
                     # 跳出旧的十六进制区域
@@ -632,28 +502,9 @@ class DSDT:
         return ("",start_index,end_index)
 
     def is_hex(self, line):
-        """
-        检查行是否包含十六进制数据
-        
-        参数:
-            line: 要检查的行
-            
-        返回:
-            如果行包含十六进制数据则返回True，否则返回False
-        """
         return self.hex_match.match(line) is not None
 
     def get_hex_starting_at(self, start_index, table=None):
-        """
-        获取从指定索引开始的十六进制数据
-        
-        参数:
-            start_index: 开始获取的索引
-            table: 要获取的表，默认为DSDT表或唯一表
-            
-        返回:
-            元组 (hex_text, index)，其中hex_text是十六进制数据，index是结束索引
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return ("",-1)
         # 返回十六进制数据和结束索引的元组
@@ -667,16 +518,6 @@ class DSDT:
         return (hex_text, index)
 
     def get_hex_ending_at(self, start_index, table=None):
-        """
-        获取到指定索引结束的十六进制数据
-        
-        参数:
-            start_index: 结束获取的索引
-            table: 要获取的表，默认为DSDT表或唯一表
-            
-        返回:
-            元组 (hex_text, index)，其中hex_text是十六进制数据，index是起始索引
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return ("",-1)
         # 返回十六进制数据和起始索引的元组
@@ -690,18 +531,6 @@ class DSDT:
         return (hex_text, index)
 
     def get_shortest_unique_pad(self, current_hex, index, instance=0, table=None):
-        """
-        获取使当前十六进制数据唯一所需的最短填充
-        
-        参数:
-            current_hex: 当前十六进制数据
-            index: 十六进制数据的索引
-            instance: 实例编号
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            元组 (left_pad, right_pad)，其中left_pad是左侧填充，right_pad是右侧填充
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return None
         try:    left_pad  = self.get_unique_pad(current_hex, index, False, instance, table=table)
@@ -720,19 +549,6 @@ class DSDT:
         return min_pad
 
     def get_unique_pad(self, current_hex, index, direction=None, instance=0, table=None):
-        """
-        获取使当前十六进制数据唯一所需的填充
-        
-        参数:
-            current_hex: 当前十六进制数据
-            index: 十六进制数据的索引
-            direction: 填充方向，可以是True（向前）、False（向后）或None（双向）
-            instance: 实例编号
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            元组 (left_pad, right_pad)，其中left_pad是左侧填充，right_pad是右侧填充
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: raise Exception("No valid table passed!")
         # 返回使传入的补丁唯一所需的任何填充
@@ -788,18 +604,6 @@ class DSDT:
         return (padl,padr)
     
     def get_devices(self,search=None,types=("Device (","Scope ("),strip_comments=False,table=None):
-        """
-        获取包含指定搜索内容的设备或作用域
-        
-        参数:
-            search: 要搜索的内容
-            types: 要匹配的类型列表，默认为("Device (","Scope (")
-            strip_comments: 是否去除注释，默认为False
-            table: 要搜索的表，默认为DSDT表或唯一表
-            
-        返回:
-            元组列表，格式为(Device/Scope, d_s_index, matched_index)
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         # 返回格式为(Device/Scope, d_s_index, matched_index)的元组列表
@@ -822,18 +626,6 @@ class DSDT:
         return devices
 
     def get_scope(self,starting_index=0,add_hex=False,strip_comments=False,table=None):
-        """
-        获取从指定索引开始的作用域内容
-        
-        参数:
-            starting_index: 开始索引，默认为0
-            add_hex: 是否添加十六进制内容，默认为False
-            strip_comments: 是否去除注释，默认为False
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            作用域内容列表
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         # 从starting_index开始遍历作用域，直到退出作用域时返回
@@ -857,15 +649,6 @@ class DSDT:
         return scope
 
     def get_scopes(self, table=None):
-        """
-        获取所有处理器、作用域、设备、方法和名称的声明
-        
-        参数:
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            元组列表，格式为(声明行, 索引)
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         scopes = []
@@ -876,15 +659,6 @@ class DSDT:
         return scopes
 
     def get_paths(self, table=None):
-        """
-        获取所有对象的完整路径
-        
-        参数:
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            排序后的路径列表，每个元素为(路径字符串, 索引, 对象类型)
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         # 设置完整路径列表和当前路径引用
@@ -940,17 +714,6 @@ class DSDT:
         return sorted(path_list)
 
     def get_path_of_type(self, obj_type="Device", obj="HPET", table=None):
-        """
-        获取指定类型和名称的对象路径
-        
-        参数:
-            obj_type: 对象类型，默认为"Device"
-            obj: 对象名称，默认为"HPET"
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            排序后的路径列表
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         paths = []
@@ -966,68 +729,18 @@ class DSDT:
         return sorted(paths)
 
     def get_device_paths(self, obj="HPET",table=None):
-        """
-        获取指定名称的设备路径
-        
-        参数:
-            obj: 设备名称，默认为"HPET"
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            排序后的设备路径列表
-        """
         return self.get_path_of_type(obj_type="Device",obj=obj,table=table)
 
     def get_method_paths(self, obj="_STA",table=None):
-        """
-        获取指定名称的方法路径
-        
-        参数:
-            obj: 方法名称，默认为"_STA"
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            排序后的方法路径列表
-        """
         return self.get_path_of_type(obj_type="Method",obj=obj,table=table)
 
     def get_name_paths(self, obj="CPU0",table=None):
-        """
-        获取指定名称的名称路径
-        
-        参数:
-            obj: 名称，默认为"CPU0"
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            排序后的名称路径列表
-        """
         return self.get_path_of_type(obj_type="Name",obj=obj,table=table)
 
     def get_processor_paths(self, obj_type="Processor",table=None):
-        """
-        获取所有处理器路径
-        
-        参数:
-            obj_type: 对象类型，默认为"Processor"
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            排序后的处理器路径列表
-        """
         return self.get_path_of_type(obj_type=obj_type,obj="",table=table)
 
     def get_device_paths_with_hid(self, hid="ACPI000E", table=None):
-        """
-        获取具有指定HID（硬件ID）的设备路径
-        
-        参数:
-            hid: 硬件ID，默认为"ACPI000E"
-            table: 要操作的表，默认为DSDT表或唯一表
-            
-        返回:
-            设备路径列表
-        """
         if not table: table = self.get_dsdt_or_only()
         if not table: return []
         devs = []
