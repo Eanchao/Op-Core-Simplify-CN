@@ -4,7 +4,8 @@
 
   <p align="center">
     一款专门用于简化 <a href="https://github.com/acidanthera/OpenCorePkg">OpenCore</a> EFI 创建的工具，通过自动化核心设置流程并提供标准化配置。旨在减少手动操作，同时确保黑苹果（Hackintosh）安装过程的准确性。
-    **译者注：发现部分人 Fork 了本仓库。译者严重声明！本项目因翻译中文对部分执行源码进行了修改（或增加部分方法）！用以正确显示中文，请勿随意更改！**
+    <br />
+    <span style="color: red; font-weight: bold;">译者注：发现部分人 Fork 了本仓库。译者严重声明！本项目因翻译中文对部分执行源码进行了修改（或增加部分方法）！用以正确显示中文，请勿随意更改！</span>
     <br />
     <br />
     <a href="#-特性">特性</a> •
