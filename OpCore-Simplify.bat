@@ -16,6 +16,8 @@ set "py3v="
 set "py3path="
 set "pypath="
 set "targetpy=3"
+set "MSI_PATH=!thisDir!PyManager\python-manager-25.2.msi"
+set "LOG_FILE=!thisDir!Logs\PythonMgrInstall.log"
 
 REM use_py3:
 REM   TRUE  = Use if found, use py2 otherwise
@@ -47,14 +49,14 @@ if "!syspath!" == "" (
         echo  # 警告 #
         echo ###  ###
         echo.
-        echo Could not locate cmd.exe, reg.exe, or where.exe
+        echo 无法定位 cmd.exe, reg.exe, 或 where.exe
         echo.
-        echo Please ensure your ComSpec environment variable is properly configured and
-        echo points directly to cmd.exe, then try again.
+        echo 请确保您的 ComSpec 环境变量已正确配置，
+        echo 并直接指向 cmd.exe，然后重试。
         echo.
-        echo Current CompSpec Value: "%ComSpec%"
+        echo 当前 ComSpec 值: "%ComSpec%"
         echo.
-        echo Press [enter] to quit.
+        echo 按 [enter] 键退出。
         pause > nul
         exit /b 1
     )
@@ -120,16 +122,16 @@ if !tried! lss 1 (
 
     echo.
     REM 无论出于何种原因，都无法安装 - 显示错误消息
-    echo Python 未安装或未在您的 PATH 变量中找到。
-    echo 请从 https://www.python.org/downloads/windows/ 安装它。
+    echo "Python 未安装或未在您的 PATH 变量中找到。"
+    echo "请从 https://www.python.org/downloads/windows/ 安装它。"
     echo.
-    echo 确保选中了以下功能：
+    echo "确保选中了以下功能："
     echo.
     echo "将 Python X.X 添加到 PATH"
     echo.
-    echo 其中 X.X 是您要安装的 py 版本。
+    echo "其中 X.X 是您要安装的 py 版本。"
     echo.
-    echo 按 [enter] 键退出。
+    echo "按 [enter] 键退出。"
     pause > nul
     exit /b 1
 )
@@ -218,6 +220,27 @@ REM Incorrect answer - go back
 goto askinstall
 
 :installpy
+if not exist "!MSI_PATH!" (
+    echo 无法找到 Python Manager 安装文件！尝试从旧版安装...
+    goto installpyold
+)
+
+REM 20260129 - 现在安装 Python 需要先安装 Python Manager
+REM            请从 https://www.python.org/downloads/windows/ 安装它
+REM            现在使用 Python Manager 安装 Python
+REM            安装日志已保存到 !LOG_FILE!
+echo Python Manager 安装路径默认：%ProgramFiles%\PyManager
+echo msiexec /i "!MSI_PATH!" /qb
+msiexec /i "!MSI_PATH!" /qb
+echo Python Manager 安装完成，退出状态为 %ERRORLEVEL%
+REM 安装完成后，使用 Python Manager 安装 Python 3 最新正式发行版
+echo py install !targetpy!
+py install !targetpy!
+%ComSpec% /k
+goto checkpy
+
+
+:installpyold
 REM This will attempt to download and install python
 REM First we get the html for the python downloads page for Windows
 set /a tried=!tried!+1
