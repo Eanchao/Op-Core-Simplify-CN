@@ -1,4 +1,3 @@
-chcp 65001
 @echo off
 REM Source: https://github.com/corpnewt/SSDTTime/blob/97a3963e40a153a8df5ae61a73e150cd7a119b3c/SSDTTime.bat
 REM Get our local path before delayed expansion - allows ! in path
@@ -6,7 +5,7 @@ set "thisDir=%~dp0"
 
 setlocal enableDelayedExpansion
 REM Setup initial vars
-set "script_name="
+set "script_name=OpCore-Simplify.py"
 set /a tried=0
 set "toask=yes"
 set "pause_on_error=yes"
@@ -43,9 +42,9 @@ if "!syspath!" == "" (
     )
     if "!syspath!" == "" (
         cls
-        echo   ###  ###
-        echo  # 警告 #
-        echo ###  ###
+        echo   ###     ###
+        echo  # Warning #
+        echo ###     ###
         echo.
         echo Could not locate cmd.exe, reg.exe, or where.exe
         echo.
@@ -78,10 +77,11 @@ if "!script_name!" == "" (
     )
 )
 if not exist "!thisDir!\!script_name!" (
-    echo 找不到 !looking_for!。
-    echo 请确保从与 !looking_for! 相同的目录运行此脚本。
+    echo Could not find !looking_for!.
+    echo Please make sure to run this script from the same directory
+    echo as !looking_for!.
     echo.
-    echo 按 [enter] 键退出。
+    echo Press [enter] to quit.
     pause > nul
     exit /b 1
 )
@@ -114,22 +114,21 @@ if !tried! lss 1 (
     )
 ) else (
     cls
-    echo   ###  ###
-    echo  # 警告 #
-    echo ###  ###
-
+    echo   ###     ###
+    echo  # Warning #
+    echo ###     ###
     echo.
-    REM 无论出于何种原因，都无法安装 - 显示错误消息
-    echo Python 未安装或未在您的 PATH 变量中找到。
-    echo 请从 https://www.python.org/downloads/windows/ 安装它。
+    REM Couldn't install for whatever reason - give the error message
+    echo Python is not installed or not found in your PATH var.
+    echo Please install it from https://www.python.org/downloads/windows/
     echo.
-    echo 确保选中了以下功能：
+    echo Make sure you check the box labeled:
     echo.
-    echo "将 Python X.X 添加到 PATH"
+    echo "Add Python X.X to PATH"
     echo.
-    echo 其中 X.X 是您要安装的 py 版本。
+    echo Where X.X is the py version you're installing.
     echo.
-    echo 按 [enter] 键退出。
+    echo Press [enter] to quit.
     pause > nul
     exit /b 1
 )
@@ -199,13 +198,13 @@ exit /b 0
 
 :askinstall
 cls
-echo   ###           ###
-echo  # Python 未找到 #
-echo ###           ###
+echo   ###              ###
+echo  # Python Not Found #
+echo ###              ###
 echo.
-echo Python !targetpy! 未在系统或 PATH 变量中找到。
+echo Python !targetpy! was not found on the system or in the PATH var.
 echo.
-set /p "menu=是否现在安装 Python [y/n]: "
+set /p "menu=Would you like to install it now? [y/n]: "
 if /i "!menu!"=="y" (
     REM We got the OK - install it
     goto installpy
@@ -222,36 +221,36 @@ REM This will attempt to download and install python
 REM First we get the html for the python downloads page for Windows
 set /a tried=!tried!+1
 cls
-echo   ###             ###
-echo  # 正在安装 Python #
-echo ###             ###
+echo   ###               ###
+echo  # Installing Python #
+echo ###               ###
 echo.
-echo 正在从 https://www.python.org/downloads/windows/ 获取 Python 下载地址...
+echo Gathering info from https://www.python.org/downloads/windows/...
 powershell -command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;(new-object System.Net.WebClient).DownloadFile('https://www.python.org/downloads/windows/','%TEMP%\pyurl.txt')"
 REM Extract it if it's gzip compressed
 powershell -command "$infile='%TEMP%\pyurl.txt';$outfile='%TEMP%\pyurl.temp';try{$input=New-Object System.IO.FileStream $infile,([IO.FileMode]::Open),([IO.FileAccess]::Read),([IO.FileShare]::Read);$output=New-Object System.IO.FileStream $outfile,([IO.FileMode]::Create),([IO.FileAccess]::Write),([IO.FileShare]::None);$gzipStream=New-Object System.IO.Compression.GzipStream $input,([IO.Compression.CompressionMode]::Decompress);$buffer=New-Object byte[](1024);while($true){$read=$gzipstream.Read($buffer,0,1024);if($read -le 0){break};$output.Write($buffer,0,$read)};$gzipStream.Close();$output.Close();$input.Close();Move-Item -Path $outfile -Destination $infile -Force}catch{}"
 if not exist "%TEMP%\pyurl.txt" (
     if /i "!just_installing!" == "TRUE" (
-        echo 获取信息失败
+        echo Failed to get info
         exit /b 1
     ) else (
         goto checkpy
     )
 )
-echo 正在解析最新版本...
+echo Parsing for latest...
 pushd "%TEMP%"
 :: Version detection code slimmed by LussacZheng (https://github.com/corpnewt/gibMacOS/issues/20)
 for /f "tokens=9 delims=< " %%x in ('findstr /i /c:"Latest Python !targetpy! Release" pyurl.txt') do ( set "release=%%x" )
 popd
 if "!release!" == "" (
     if /i "!just_installing!" == "TRUE" (
-        echo 获取 Python 版本失败
+        echo Failed to get python version
         exit /b 1
     ) else (
         goto checkpy
     )
 )
-echo 已找到 Python !release! - 正在下载...
+echo Found Python !release! - Downloading...
 REM Let's delete our txt file now - we no longer need it
 del "%TEMP%\pyurl.txt"
 REM At this point - we should have the version number.
@@ -267,14 +266,14 @@ powershell -command "[Net.ServicePointManager]::SecurityProtocol = [Net.Security
 REM If it doesn't exist - we bail
 if not exist "%TEMP%\pyinstall.!pytype!" (
     if /i "!just_installing!" == "TRUE" (
-        echo 下载安装程序失败
+        echo Failed to download installer
         exit /b 1
     ) else (
         goto checkpy
     )
 )
 REM It should exist at this point - let's run it to install silently
-echo 正在安装...
+echo Installing...
 pushd "%TEMP%"
 if /i "!pytype!" == "exe" (
     echo pyinstall.exe /quiet PrependPath=1 Include_test=0 Shortcuts=0 Include_launcher=0
@@ -285,7 +284,7 @@ if /i "!pytype!" == "exe" (
     msiexec /i pyinstall.msi /qb ADDLOCAL=ALL TARGETDIR="%LocalAppData%\Programs\Python\Python!foldername:~0,2!"
 )
 popd
-echo 安装程序已完成，退出状态为 %ERRORLEVEL%。
+echo Installer finished with %ERRORLEVEL% status.
 REM Now we should be able to delete the installer and check for py again
 del "%TEMP%\pyinstall.!pytype!"
 REM If it worked, then we should have python in our PATH
@@ -294,7 +293,7 @@ REM manually updating the local PATH var
 call :updatepath
 if /i "!just_installing!" == "TRUE" (
     echo.
-    echo 安装完成。
+    echo Done.
 ) else (
     goto checkpy
 )
@@ -313,9 +312,9 @@ if "!args!"=="" (
 if /i "!pause_on_error!" == "yes" (
     if not "%ERRORLEVEL%" == "0" (
         echo.
-        echo 脚本执行时出错，错误代码为： %ERRORLEVEL%
+        echo Script exited with error code: %ERRORLEVEL%
         echo.
-        echo 按 [enter] 键退出...
+        echo Press [enter] to exit...
         pause > nul
     )
 )
