@@ -230,8 +230,8 @@ REM            请从 https://www.python.org/downloads/windows/ 安装它
 REM            现在使用 Python Manager 安装 Python
 REM            安装日志已保存到 !LOG_FILE!
 echo Python Manager 安装路径默认：%ProgramFiles%\PyManager
-echo msiexec /i "!MSI_PATH!" /qb
-msiexec /i "!MSI_PATH!" /qb
+echo msiexec /i "!MSI_PATH!" /qb /log "!LOG_FILE!"
+msiexec /i "!MSI_PATH!" /qb /log "!LOG_FILE!"
 echo Python Manager 安装完成，退出状态为 %ERRORLEVEL%
 REM 安装完成后，使用 Python Manager 安装 Python 3 最新正式发行版
 echo py install !targetpy!
